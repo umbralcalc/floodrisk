@@ -72,7 +72,22 @@ main:
 go build ./...                                    # compile this project
 go test -count=1 ./...                            # run all tests
 go run github.com/umbralcalc/stochadex/cmd/stochadex --config cfg/builtin_example.yaml
+go run ./cmd/ingest/                              # download EA data → dat/
+go run ./cmd/analyse/                             # exploratory analysis on dat/
 ```
+
+## Data Ingestion (pkg/hydrology)
+
+The `pkg/hydrology` package provides an EA Hydrology API client and data ingestion pipeline:
+
+- `Client` — HTTP client for the EA Hydrology API (stations, measures, readings)
+- `Ingester` — fetches flow and rainfall time series, writes CSV to `dat/`
+- `CatchmentConfig` / `UpperCalderValley()` — defines the target catchment and its stations
+- `FetchFloodAreas` — fetches EA flood alert/warning areas
+- `LoadTimeSeries`, `Summary`, `DetectFloodEvents`, `AnnualMaxima` — analysis utilities
+
+Downloaded data lives in `dat/` (gitignored). Regenerate with `go run ./cmd/ingest/`.
+The `-data` flag overrides the output directory; `-from`/`-to` control the date range.
 
 ## Testing Conventions
 

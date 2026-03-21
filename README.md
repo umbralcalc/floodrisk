@@ -4,6 +4,38 @@
 
 ---
 
+## Current Status
+
+Phase 1 (data acquisition and exploration) is complete for the **Upper Calder Valley** catchment in Yorkshire. The project has:
+
+- **7 flow gauging stations** ingested (River Calder at Elland and Dewsbury, plus tributaries Ryburn, Colne, Holme, and Spen Beck)
+- **24 rainfall stations** within 15 km of the catchment centre
+- **109 flood alert/warning areas** covering the catchment
+- **16 years of daily data** (2010–2025) for all stations
+- Exploratory analysis confirming the Boxing Day 2015 flood as the largest event (189.66 m³/s at Elland, ~17-year return period)
+
+### Project Structure
+
+```
+cmd/ingest/       CLI to download EA Hydrology, Rainfall, and Flood area data
+cmd/analyse/      CLI to run exploratory analysis on downloaded data
+pkg/hydrology/    EA API client, catchment config, data ingestion, and analysis
+pkg/custom/       Custom stochadex iterations (e.g. MovingAverageIteration)
+cfg/              Stochadex YAML simulation configs
+dat/              Downloaded CSV data (gitignored, regenerable via cmd/ingest)
+```
+
+### Quick Start
+
+```bash
+go build ./...                        # compile
+go test -count=1 ./...                # run all tests
+go run ./cmd/ingest/                  # download data from EA APIs → dat/
+go run ./cmd/analyse/                 # run exploratory analysis on dat/
+```
+
+---
+
 ## Overview
 
 Build a stochastic simulation of catchment-scale flood dynamics under climate change, learned from freely available UK hydrological, meteorological and land-use data, with a decision science layer to evaluate and optimise natural flood management (NFM) intervention portfolios.
@@ -317,12 +349,12 @@ Once the core single-catchment model is validated:
 
 ### Week 1–2: Data acquisition and exploration
 
-- [ ] Identify target catchment and list all EA gauging stations within it
-- [ ] Pull 15-min and daily flow data from EA Hydrology API for those stations (2010–2025)
-- [ ] Pull co-located rainfall station data from EA Rainfall API
+- [x] Identify target catchment and list all EA gauging stations within it
+- [x] Pull daily flow data from EA Hydrology API for those stations (2010–2025)
+- [x] Pull co-located rainfall station data from EA Rainfall API
 - [ ] Download HadUK-Grid daily rainfall for the catchment area
-- [ ] Download EA Risk of Flooding from Rivers and Sea data for the catchment
-- [ ] Exploratory analysis: characterise the rainfall-runoff relationship, identify major flood events, estimate empirical flood frequency curves
+- [x] Download EA Risk of Flooding from Rivers and Sea data for the catchment
+- [x] Exploratory analysis: characterise the rainfall-runoff relationship, identify major flood events, estimate empirical flood frequency curves
 
 ### Week 3–4: Minimal stochadex simulation
 
@@ -345,7 +377,6 @@ Once the core single-catchment model is validated:
 - [ ] Perturb rainfall with UKCP18 change factors for 2040 and 2070 scenarios
 - [ ] Run policy evaluation: simulate ensembles under each portfolio × climate scenario
 - [ ] Produce initial findings and visualisations
-- [ ] Write up as a blog post in the "Engineering Smart Actions in Practice" series
 
 ---
 
