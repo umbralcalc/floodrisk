@@ -1,4 +1,4 @@
-package custom
+package catchment
 
 import (
 	"testing"

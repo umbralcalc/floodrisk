@@ -1,0 +1,41 @@
+main:
+  partitions:
+
+  # Rainfall input: constant 10 mm/day via ParamValuesIteration
+  - name: rainfall
+    iteration: rainfallInput
+    params:
+      param_values: [10.0]
+    init_state_values: [10.0]
+    state_history_depth: 1
+    seed: 0
+    extra_packages:
+    - github.com/umbralcalc/stochadex/pkg/general
+    extra_vars:
+    - rainfallInput: "&general.ParamValuesIteration{}"
+
+  # Lumped rainfall-runoff model for a single sub-catchment
+  - name: rainfall_runoff
+    iteration: rainfallRunoff
+    params:
+      field_capacity: [200.0]
+      drainage_rate: [0.05]
+      et_rate: [1.5]
+      runoff_coefficient: [0.5]
+      recession_rate: [0.3]
+      catchment_area_km2: [200.0]
+      upstream_partition: [0]
+    init_state_values: [100.0, 0.0]
+    state_history_depth: 2
+    seed: 0
+    extra_packages:
+    - github.com/umbralcalc/floodrisk/pkg/catchment
+    extra_vars:
+    - rainfallRunoff: "&catchment.RainfallRunoffIteration{}"
+
+  simulation:
+    output_condition: "&simulator.EveryStepOutputCondition{}"
+    output_function: "&simulator.StdoutOutputFunction{}"
+    termination_condition: "&simulator.NumberOfStepsTerminationCondition{MaxNumberOfSteps: 365}"
+    timestep_function: "&simulator.ConstantTimestepFunction{Stepsize: 1.0}"
+    init_time_value: 0.0

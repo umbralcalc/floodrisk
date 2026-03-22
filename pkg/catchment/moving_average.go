@@ -1,4 +1,4 @@
-package custom
+package catchment
 
 import (
 	"github.com/umbralcalc/stochadex/pkg/simulator"

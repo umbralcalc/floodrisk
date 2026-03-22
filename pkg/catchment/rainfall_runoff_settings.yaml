@@ -1,0 +1,23 @@
+iterations:
+- name: rainfall
+  params:
+    param_values: [10.0]
+  init_state_values: [10.0]
+  seed: 0
+  state_width: 1
+  state_history_depth: 2
+- name: rainfall_runoff
+  params:
+    field_capacity: [200.0]
+    drainage_rate: [0.05]
+    et_rate: [1.5]
+    runoff_coefficient: [0.5]
+    recession_rate: [0.3]
+    catchment_area_km2: [200.0]
+    upstream_partition: [0]
+  init_state_values: [100.0, 0.0]
+  seed: 0
+  state_width: 2
+  state_history_depth: 2
+init_time_value: 0.0
+timesteps_history_depth: 2
