@@ -20,7 +20,7 @@ Phase 1 (data acquisition and exploration) is complete for the **Upper Calder Va
 cmd/ingest/       CLI to download EA Hydrology, Rainfall, and Flood area data
 cmd/analyse/      CLI to run exploratory analysis on downloaded data
 pkg/hydrology/    EA API client, catchment config, data ingestion, and analysis
-pkg/catchment/    Catchment simulation iterations (rainfall-runoff, moving average)
+pkg/catchment/    Catchment simulation iterations (rainfall-runoff model)
 cfg/              Stochadex YAML simulation configs
 dat/              Downloaded CSV data (gitignored, regenerable via cmd/ingest)
 ```
