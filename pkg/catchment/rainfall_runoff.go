@@ -8,38 +8,43 @@ import (
 
 // NumModelParams is the number of calibration parameters when using
 // the vectorized "model_params" format.
-const NumModelParams = 6
+const NumModelParams = 7
 
 // ModelParamsFromMap converts individual named params to the vectorized
 // model_params format: [field_capacity, drainage_rate, et_rate,
-// runoff_coefficient, recession_rate, catchment_area_km2].
+// runoff_shape, fast_recession_rate, slow_recession_rate, catchment_area_km2].
 func ModelParamsFromMap(m map[string][]float64) []float64 {
 	return []float64{
 		m["field_capacity"][0],
 		m["drainage_rate"][0],
 		m["et_rate"][0],
-		m["runoff_coefficient"][0],
-		m["recession_rate"][0],
+		m["runoff_shape"][0],
+		m["fast_recession_rate"][0],
+		m["slow_recession_rate"][0],
 		m["catchment_area_km2"][0],
 	}
 }
 
 // RainfallRunoffIteration implements a lumped conceptual rainfall-runoff
-// model for a single sub-catchment. It reads rainfall (mm/day) from an
-// upstream partition and produces river flow (m³/s) through a soil
-// moisture bucket with quick and slow flow pathways.
+// model for a single sub-catchment using PDM-style nonlinear runoff
+// generation and parallel fast/slow flow stores.
 //
-// State vector: [soil_moisture_mm, flow_m3s]
+// State vector: [soil_moisture_mm, total_flow_m3s, fast_flow_m3s, slow_flow_m3s]
 //
 // Parameters can be provided in two ways:
 //
-// Named params (original):
-//   - field_capacity, drainage_rate, et_rate, runoff_coefficient,
-//     recession_rate, catchment_area_km2
+// Named params:
+//   - field_capacity:       max soil moisture storage (mm)
+//   - drainage_rate:        fraction of soil moisture draining per day
+//   - et_rate:              evapotranspiration rate (mm/day)
+//   - runoff_shape:         PDM exponent controlling nonlinear runoff generation
+//   - fast_recession_rate:  recession constant for fast flow store (0–1)
+//   - slow_recession_rate:  recession constant for slow baseflow store (0–1)
+//   - catchment_area_km2:   catchment area for mm→m³/s conversion
 //
 // Vectorized (for SBI wiring via params_from_upstream):
 //   - model_params: [field_capacity, drainage_rate, et_rate,
-//     runoff_coefficient, recession_rate, catchment_area_km2]
+//     runoff_shape, fast_recession_rate, slow_recession_rate, catchment_area_km2]
 //
 // Additional:
 //   - upstream_partition: partition index providing rainfall
@@ -63,20 +68,23 @@ func (r *RainfallRunoffIteration) Iterate(
 	timestepsHistory *simulator.CumulativeTimestepsHistory,
 ) []float64 {
 	// Read parameters — vectorized or individual named params.
-	var fieldCapacity, drainageRate, etRate, runoffCoeff, recessionRate, catchmentArea float64
+	var fieldCapacity, drainageRate, etRate float64
+	var runoffShape, fastRecession, slowRecession, catchmentArea float64
 	if mp, ok := params.GetOk("model_params"); ok {
 		fieldCapacity = mp[0]
 		drainageRate = mp[1]
 		etRate = mp[2]
-		runoffCoeff = mp[3]
-		recessionRate = mp[4]
-		catchmentArea = mp[5]
+		runoffShape = mp[3]
+		fastRecession = mp[4]
+		slowRecession = mp[5]
+		catchmentArea = mp[6]
 	} else {
 		fieldCapacity = params.Map["field_capacity"][0]
 		drainageRate = params.Map["drainage_rate"][0]
 		etRate = params.Map["et_rate"][0]
-		runoffCoeff = params.Map["runoff_coefficient"][0]
-		recessionRate = params.Map["recession_rate"][0]
+		runoffShape = params.Map["runoff_shape"][0]
+		fastRecession = params.Map["fast_recession_rate"][0]
+		slowRecession = params.Map["slow_recession_rate"][0]
 		catchmentArea = params.Map["catchment_area_km2"][0]
 	}
 
@@ -89,36 +97,47 @@ func (r *RainfallRunoffIteration) Iterate(
 	// Previous state.
 	current := stateHistories[partitionIndex]
 	soilMoisture := current.Values.At(0, 0)
-	prevFlow := current.Values.At(0, 1)
+	prevFastFlow := current.Values.At(0, 2)
+	prevSlowFlow := current.Values.At(0, 3)
 
 	// --- Soil moisture accounting ---
 
 	// Net rainfall after ET losses (can't go negative).
 	netRainfall := math.Max(rainfall-etRate, 0.0) * dt
 
-	// Add net rainfall to soil store.
-	soilMoisture += netRainfall
+	// PDM-style nonlinear runoff generation.
+	// Runoff fraction increases nonlinearly with soil saturation,
+	// representing partial-area runoff from saturated zones.
+	saturation := math.Min(math.Max(soilMoisture/fieldCapacity, 0.0), 1.0)
+	runoffFraction := 1.0 - math.Pow(1.0-saturation, runoffShape)
+	directRunoff := netRainfall * runoffFraction
+	infiltration := netRainfall - directRunoff
 
-	// Excess over field capacity becomes surface runoff.
+	// Add infiltration to soil store.
+	soilMoisture += infiltration
+
+	// Any excess over field capacity also becomes direct runoff.
 	excess := math.Max(soilMoisture-fieldCapacity, 0.0)
 	soilMoisture -= excess
+	directRunoff += excess
 
 	// Slow drainage from soil store.
 	drainage := drainageRate * soilMoisture * dt
 	soilMoisture -= drainage
 	soilMoisture = math.Max(soilMoisture, 0.0)
 
-	// --- Flow generation ---
+	// --- Parallel flow routing ---
 
-	// Quick runoff from excess + baseflow from drainage (mm over timestep).
-	totalRunoffMM := runoffCoeff*excess + drainage
+	// Convert mm → m³/s: mm * km² * 1000 / (86400 * dt)
+	mmToM3s := catchmentArea * 1000.0 / (86400.0 * dt)
 
-	// Convert mm → m³/s:  (mm * km² * 1e6 m²/km² * 1e-3 m/mm) / (86400 s/day * dt)
-	// Simplifies to: mm * km² * 1000 / (86400 * dt)
-	flowContribution := totalRunoffMM * catchmentArea * 1000.0 / (86400.0 * dt)
+	// Fast store: receives direct runoff, responds quickly to rainfall.
+	fastContribution := directRunoff * mmToM3s
+	fastFlow := fastRecession*fastContribution + (1.0-fastRecession)*prevFastFlow
 
-	// Recession filter: blend new contribution with previous flow.
-	flow := recessionRate*flowContribution + (1.0-recessionRate)*prevFlow
+	// Slow store: receives soil drainage, provides baseflow.
+	slowContribution := drainage * mmToM3s
+	slowFlow := slowRecession*slowContribution + (1.0-slowRecession)*prevSlowFlow
 
-	return []float64{soilMoisture, flow}
+	return []float64{soilMoisture, fastFlow + slowFlow, fastFlow, slowFlow}
 }

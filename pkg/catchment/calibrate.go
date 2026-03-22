@@ -10,23 +10,25 @@ import (
 
 // ParamBounds defines the search range for each calibration parameter.
 type ParamBounds struct {
-	FieldCapacity    [2]float64 // [min, max] mm
-	DrainageRate     [2]float64 // [min, max] fraction/day
-	ETRate           [2]float64 // [min, max] mm/day
-	RunoffCoeff      [2]float64 // [min, max] 0-1
-	RecessionRate    [2]float64 // [min, max] 0-1
-	CatchmentAreaKm2 [2]float64 // [min, max] km²
+	FieldCapacity      [2]float64 // [min, max] mm
+	DrainageRate       [2]float64 // [min, max] fraction/day
+	ETRate             [2]float64 // [min, max] mm/day
+	RunoffShape        [2]float64 // [min, max] PDM exponent
+	FastRecessionRate  [2]float64 // [min, max] 0-1
+	SlowRecessionRate  [2]float64 // [min, max] 0-1
+	CatchmentAreaKm2   [2]float64 // [min, max] km²
 }
 
 // DefaultBounds returns physically reasonable parameter ranges.
 func DefaultBounds() ParamBounds {
 	return ParamBounds{
-		FieldCapacity:    [2]float64{50, 500},
-		DrainageRate:     [2]float64{0.001, 0.3},
-		ETRate:           [2]float64{0.5, 5.0},
-		RunoffCoeff:      [2]float64{0.1, 0.99},
-		RecessionRate:    [2]float64{0.05, 0.95},
-		CatchmentAreaKm2: [2]float64{100, 500},
+		FieldCapacity:     [2]float64{50, 500},
+		DrainageRate:      [2]float64{0.001, 0.3},
+		ETRate:            [2]float64{0.5, 5.0},
+		RunoffShape:       [2]float64{0.1, 10.0},
+		FastRecessionRate: [2]float64{0.3, 0.99},
+		SlowRecessionRate: [2]float64{0.01, 0.5},
+		CatchmentAreaKm2:  [2]float64{100, 500},
 	}
 }
 
@@ -45,13 +47,14 @@ func SampleParams(bounds ParamBounds, rng *rand.Rand) map[string][]float64 {
 		return b[0] + rng.Float64()*(b[1]-b[0])
 	}
 	return map[string][]float64{
-		"field_capacity":    {sample(bounds.FieldCapacity)},
-		"drainage_rate":     {sample(bounds.DrainageRate)},
-		"et_rate":           {sample(bounds.ETRate)},
-		"runoff_coefficient": {sample(bounds.RunoffCoeff)},
-		"recession_rate":    {sample(bounds.RecessionRate)},
-		"catchment_area_km2": {sample(bounds.CatchmentAreaKm2)},
-		"upstream_partition": {0},
+		"field_capacity":      {sample(bounds.FieldCapacity)},
+		"drainage_rate":       {sample(bounds.DrainageRate)},
+		"et_rate":             {sample(bounds.ETRate)},
+		"runoff_shape":        {sample(bounds.RunoffShape)},
+		"fast_recession_rate": {sample(bounds.FastRecessionRate)},
+		"slow_recession_rate": {sample(bounds.SlowRecessionRate)},
+		"catchment_area_km2":  {sample(bounds.CatchmentAreaKm2)},
+		"upstream_partition":  {0},
 	}
 }
 
@@ -71,8 +74,8 @@ func RunModel(rainfallData [][]float64, params map[string][]float64, nSteps int)
 			{
 				Name:              "rainfall_runoff",
 				Params:            simulator.Params{Map: params},
-				InitStateValues:   []float64{100.0, 0.0},
-				StateWidth:        2,
+				InitStateValues:   []float64{100.0, 0.0, 0.0, 0.0},
+				StateWidth:        4,
 				StateHistoryDepth: 2,
 			},
 		},
@@ -100,7 +103,7 @@ func RunModel(rainfallData [][]float64, params map[string][]float64, nSteps int)
 	simStates := store.GetValues("rainfall_runoff")
 	simFlow := make([]float64, len(simStates))
 	for i, row := range simStates {
-		simFlow[i] = row[1]
+		simFlow[i] = row[1] // total_flow
 	}
 	return simFlow
 }

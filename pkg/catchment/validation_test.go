@@ -69,7 +69,7 @@ func TestRainfallRunoffValidation(t *testing.T) {
 			)
 			coordinator.Run()
 
-			// Extract simulated flow (state index 1 of rainfall_runoff partition).
+			// Extract simulated total flow (fast + slow, indices 1 and 2).
 			simStates := store.GetValues("rainfall_runoff")
 			simFlow := make([]float64, len(simStates))
 			for i, row := range simStates {

@@ -44,12 +44,13 @@ func TestCalibrate(t *testing.T) {
 			t.Logf("  Peak bias:    %.4f", result.PeakBias)
 			t.Logf("  Volume error: %.4f", result.VolumeError)
 			t.Logf("  Params:")
-			t.Logf("    field_capacity:    %.1f mm", result.Params["field_capacity"][0])
-			t.Logf("    drainage_rate:     %.4f", result.Params["drainage_rate"][0])
-			t.Logf("    et_rate:           %.2f mm/day", result.Params["et_rate"][0])
-			t.Logf("    runoff_coefficient: %.4f", result.Params["runoff_coefficient"][0])
-			t.Logf("    recession_rate:    %.4f", result.Params["recession_rate"][0])
-			t.Logf("    catchment_area:    %.1f km²", result.Params["catchment_area_km2"][0])
+			t.Logf("    field_capacity:      %.1f mm", result.Params["field_capacity"][0])
+			t.Logf("    drainage_rate:       %.4f", result.Params["drainage_rate"][0])
+			t.Logf("    et_rate:             %.2f mm/day", result.Params["et_rate"][0])
+			t.Logf("    runoff_shape:        %.4f", result.Params["runoff_shape"][0])
+			t.Logf("    fast_recession_rate: %.4f", result.Params["fast_recession_rate"][0])
+			t.Logf("    slow_recession_rate: %.4f", result.Params["slow_recession_rate"][0])
+			t.Logf("    catchment_area:      %.1f km²", result.Params["catchment_area_km2"][0])
 
 			// Default params give NSE=0.108. Calibration should beat that.
 			if result.NSE <= 0.108 {

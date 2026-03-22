@@ -8,11 +8,11 @@ iterations:
   state_history_depth: 2
 - name: rainfall_runoff
   params:
-    model_params: [200.0, 0.05, 1.5, 0.5, 0.3, 200.0]
+    model_params: [200.0, 0.05, 1.5, 2.0, 0.7, 0.1, 200.0]
     upstream_partition: [0]
-  init_state_values: [100.0, 0.0]
+  init_state_values: [100.0, 0.0, 0.0, 0.0]
   seed: 0
-  state_width: 2
+  state_width: 4
   state_history_depth: 2
 init_time_value: 0.0
 timesteps_history_depth: 2
