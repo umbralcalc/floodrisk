@@ -74,6 +74,7 @@ go test -count=1 ./...                            # run all tests
 go run github.com/umbralcalc/stochadex/cmd/stochadex --config cfg/rainfall_runoff.yaml
 go run ./cmd/ingest/                              # download EA data → dat/
 go run ./cmd/analyse/                             # exploratory analysis on dat/
+go run ./cmd/calibrate/                           # calibrate model params
 ```
 
 ## Data Ingestion (pkg/hydrology)

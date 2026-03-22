@@ -6,6 +6,24 @@ import (
 	"github.com/umbralcalc/stochadex/pkg/simulator"
 )
 
+// NumModelParams is the number of calibration parameters when using
+// the vectorized "model_params" format.
+const NumModelParams = 6
+
+// ModelParamsFromMap converts individual named params to the vectorized
+// model_params format: [field_capacity, drainage_rate, et_rate,
+// runoff_coefficient, recession_rate, catchment_area_km2].
+func ModelParamsFromMap(m map[string][]float64) []float64 {
+	return []float64{
+		m["field_capacity"][0],
+		m["drainage_rate"][0],
+		m["et_rate"][0],
+		m["runoff_coefficient"][0],
+		m["recession_rate"][0],
+		m["catchment_area_km2"][0],
+	}
+}
+
 // RainfallRunoffIteration implements a lumped conceptual rainfall-runoff
 // model for a single sub-catchment. It reads rainfall (mm/day) from an
 // upstream partition and produces river flow (m³/s) through a soil
@@ -13,14 +31,18 @@ import (
 //
 // State vector: [soil_moisture_mm, flow_m3s]
 //
-// Parameters:
-//   - field_capacity:      max soil moisture storage (mm)
-//   - drainage_rate:       fraction of soil moisture draining per day
-//   - et_rate:             evapotranspiration rate (mm/day)
-//   - runoff_coefficient:  fraction of excess rainfall becoming quick runoff
-//   - recession_rate:      hydrograph recession constant (0–1, higher = faster response)
-//   - catchment_area_km2:  catchment area for mm→m³/s conversion
-//   - upstream_partition:   partition index providing rainfall
+// Parameters can be provided in two ways:
+//
+// Named params (original):
+//   - field_capacity, drainage_rate, et_rate, runoff_coefficient,
+//     recession_rate, catchment_area_km2
+//
+// Vectorized (for SBI wiring via params_from_upstream):
+//   - model_params: [field_capacity, drainage_rate, et_rate,
+//     runoff_coefficient, recession_rate, catchment_area_km2]
+//
+// Additional:
+//   - upstream_partition: partition index providing rainfall
 type RainfallRunoffIteration struct {
 	upstreamPartitionIndex int
 }
@@ -40,13 +62,23 @@ func (r *RainfallRunoffIteration) Iterate(
 	stateHistories []*simulator.StateHistory,
 	timestepsHistory *simulator.CumulativeTimestepsHistory,
 ) []float64 {
-	// Read parameters.
-	fieldCapacity := params.Map["field_capacity"][0]
-	drainageRate := params.Map["drainage_rate"][0]
-	etRate := params.Map["et_rate"][0]
-	runoffCoeff := params.Map["runoff_coefficient"][0]
-	recessionRate := params.Map["recession_rate"][0]
-	catchmentArea := params.Map["catchment_area_km2"][0]
+	// Read parameters — vectorized or individual named params.
+	var fieldCapacity, drainageRate, etRate, runoffCoeff, recessionRate, catchmentArea float64
+	if mp, ok := params.GetOk("model_params"); ok {
+		fieldCapacity = mp[0]
+		drainageRate = mp[1]
+		etRate = mp[2]
+		runoffCoeff = mp[3]
+		recessionRate = mp[4]
+		catchmentArea = mp[5]
+	} else {
+		fieldCapacity = params.Map["field_capacity"][0]
+		drainageRate = params.Map["drainage_rate"][0]
+		etRate = params.Map["et_rate"][0]
+		runoffCoeff = params.Map["runoff_coefficient"][0]
+		recessionRate = params.Map["recession_rate"][0]
+		catchmentArea = params.Map["catchment_area_km2"][0]
+	}
 
 	// Time step in days.
 	dt := timestepsHistory.NextIncrement
