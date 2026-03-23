@@ -117,7 +117,8 @@ func (ing *Ingester) IngestSubDailyFlowData(station StationSpec, minDate, maxDat
 }
 
 // IngestRainfallStations discovers and ingests daily rainfall data for all
-// stations within the catchment's rainfall search radius.
+// stations within the catchment's rainfall search radius. It also writes
+// a rainfall_stations.csv metadata file with station labels and coordinates.
 func (ing *Ingester) IngestRainfallStations(cfg CatchmentConfig, minDate, maxDate string) ([]string, error) {
 	stations, err := ing.Client.FindStations(cfg.RainfallLat, cfg.RainfallLong, cfg.RainfallRadiusKm, "rainfall")
 	if err != nil {
@@ -125,6 +126,7 @@ func (ing *Ingester) IngestRainfallStations(cfg CatchmentConfig, minDate, maxDat
 	}
 
 	var paths []string
+	var stationMeta []RainfallStationMeta
 	for _, s := range stations {
 		measures, err := ing.Client.GetStationMeasures(s.Notation)
 		if err != nil {
@@ -165,8 +167,45 @@ func (ing *Ingester) IngestRainfallStations(cfg CatchmentConfig, minDate, maxDat
 			continue
 		}
 		paths = append(paths, outPath)
+		stationMeta = append(stationMeta, RainfallStationMeta{
+			Label: s.Label,
+			Lat:   s.Lat,
+			Long:  s.Long,
+		})
 	}
+
+	// Write station metadata CSV for sub-catchment rainfall assignment.
+	if len(stationMeta) > 0 {
+		metaPath := filepath.Join(ing.DataDir, "rainfall", "stations.csv")
+		if err := writeRainfallStationMeta(metaPath, stationMeta); err != nil {
+			fmt.Fprintf(os.Stderr, "WARN: write rainfall station metadata: %v\n", err)
+		}
+	}
+
 	return paths, nil
+}
+
+func writeRainfallStationMeta(path string, stations []RainfallStationMeta) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	w := csv.NewWriter(f)
+	defer w.Flush()
+	if err := w.Write([]string{"label", "lat", "long"}); err != nil {
+		return err
+	}
+	for _, s := range stations {
+		if err := w.Write([]string{
+			s.Label,
+			fmt.Sprintf("%.6f", s.Lat),
+			fmt.Sprintf("%.6f", s.Long),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeReadingsCSV(path string, readings []Reading, stationLabel, river string) error {

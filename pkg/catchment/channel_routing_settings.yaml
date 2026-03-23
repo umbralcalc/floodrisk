@@ -1,0 +1,46 @@
+iterations:
+- name: rainfall
+  params:
+    param_values: [10.0]
+  init_state_values: [10.0]
+  seed: 0
+  state_width: 1
+  state_history_depth: 2
+- name: runoff_a
+  params:
+    field_capacity: [200.0]
+    drainage_rate: [0.05]
+    et_rate: [1.5]
+    runoff_shape: [2.0]
+    fast_recession_rate: [0.7]
+    slow_recession_rate: [0.1]
+    catchment_area_km2: [100.0]
+    upstream_partition: [0]
+  init_state_values: [100.0, 0.0, 0.0, 0.0]
+  seed: 0
+  state_width: 4
+  state_history_depth: 2
+- name: runoff_b
+  params:
+    field_capacity: [200.0]
+    drainage_rate: [0.05]
+    et_rate: [1.5]
+    runoff_shape: [2.0]
+    fast_recession_rate: [0.7]
+    slow_recession_rate: [0.1]
+    catchment_area_km2: [50.0]
+    upstream_partition: [0]
+  init_state_values: [100.0, 0.0, 0.0, 0.0]
+  seed: 0
+  state_width: 4
+  state_history_depth: 2
+- name: routing
+  params:
+    upstream_partitions: [1, 2]
+    routing_coefficients: [0.8, 0.5]
+  init_state_values: [0.0, 0.0, 0.0]
+  seed: 0
+  state_width: 3
+  state_history_depth: 2
+init_time_value: 0.0
+timesteps_history_depth: 2

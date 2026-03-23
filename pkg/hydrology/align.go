@@ -146,6 +146,126 @@ func interpolateFlow(flowMap map[time.Time]float64, day, start, end time.Time, s
 	return 0, false
 }
 
+// AlignedCatchmentData holds aligned daily data for multiple sub-catchments.
+type AlignedCatchmentData struct {
+	Rainfall map[string][]float64 // sub-catchment name → daily rainfall
+	Flow     map[string][]float64 // gauge label → daily flow
+	NDays    int
+	Start    time.Time
+}
+
+// AlignMultiCatchment aligns multiple rainfall and flow time series to a
+// common daily date range. Missing rainfall values are treated as 0; missing
+// flow values are linearly interpolated.
+func AlignMultiCatchment(
+	rainfall map[string]*TimeSeries,
+	flow map[string]*TimeSeries,
+) (*AlignedCatchmentData, error) {
+	// Find the global common date range across all series.
+	var globalStart, globalEnd time.Time
+	first := true
+	for _, ts := range rainfall {
+		s := truncateToDay(ts.Times[0])
+		e := truncateToDay(ts.Times[len(ts.Times)-1])
+		if first {
+			globalStart, globalEnd = s, e
+			first = false
+		} else {
+			if s.After(globalStart) {
+				globalStart = s
+			}
+			if e.Before(globalEnd) {
+				globalEnd = e
+			}
+		}
+	}
+	for _, ts := range flow {
+		s := truncateToDay(ts.Times[0])
+		e := truncateToDay(ts.Times[len(ts.Times)-1])
+		if first {
+			globalStart, globalEnd = s, e
+			first = false
+		} else {
+			if s.After(globalStart) {
+				globalStart = s
+			}
+			if e.Before(globalEnd) {
+				globalEnd = e
+			}
+		}
+	}
+	if first || !globalStart.Before(globalEnd) {
+		return nil, fmt.Errorf("no overlapping date range across all series")
+	}
+
+	oneDay := 24 * time.Hour
+
+	// Build day-indexed maps for each series.
+	rainMaps := make(map[string]map[time.Time]float64, len(rainfall))
+	for name, ts := range rainfall {
+		m := make(map[time.Time]float64, len(ts.Times))
+		for i, t := range ts.Times {
+			m[truncateToDay(t)] = ts.Values[i]
+		}
+		rainMaps[name] = m
+	}
+	flowMaps := make(map[string]map[time.Time]float64, len(flow))
+	for name, ts := range flow {
+		m := make(map[time.Time]float64, len(ts.Times))
+		for i, t := range ts.Times {
+			m[truncateToDay(t)] = ts.Values[i]
+		}
+		flowMaps[name] = m
+	}
+
+	// Iterate over common date range.
+	result := &AlignedCatchmentData{
+		Rainfall: make(map[string][]float64, len(rainfall)),
+		Flow:     make(map[string][]float64, len(flow)),
+		Start:    globalStart,
+	}
+	for d := globalStart; !d.After(globalEnd); d = d.Add(oneDay) {
+		// Check all flow series have data (or can be interpolated).
+		skip := false
+		flowVals := make(map[string]float64, len(flow))
+		for name, fm := range flowMaps {
+			if v, ok := fm[d]; ok {
+				flowVals[name] = v
+			} else {
+				v, ok := interpolateFlow(fm, d, globalStart, globalEnd, oneDay)
+				if !ok {
+					skip = true
+					break
+				}
+				flowVals[name] = v
+			}
+		}
+		if skip {
+			continue
+		}
+
+		for name, rm := range rainMaps {
+			result.Rainfall[name] = append(result.Rainfall[name], rm[d])
+		}
+		for name, v := range flowVals {
+			result.Flow[name] = append(result.Flow[name], v)
+		}
+	}
+
+	result.NDays = len(result.Flow[firstKey(result.Flow)])
+	if result.NDays == 0 {
+		return nil, fmt.Errorf("no aligned data points")
+	}
+	return result, nil
+}
+
+func firstKey(m map[string][]float64) string {
+	for k := range m {
+		return k
+	}
+	return ""
+}
+
 // ToStorageData converts a flat slice of values into the [][]float64
 // format required by general.FromStorageIteration.Data. Each value
 // is wrapped in a single-element slice.
