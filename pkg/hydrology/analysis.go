@@ -302,7 +302,7 @@ func LoadAllRainfallSeries(dataDir string) ([]*TimeSeries, error) {
 	}
 	var series []*TimeSeries
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".csv") {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), "_daily_rainfall.csv") {
 			continue
 		}
 		label := strings.TrimSuffix(e.Name(), "_daily_rainfall.csv")

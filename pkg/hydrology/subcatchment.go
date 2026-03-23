@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // SubCatchment defines a sub-catchment within the study area.
@@ -197,8 +198,10 @@ func LoadRainfallStationMeta(path string) ([]RainfallStationMeta, error) {
 		if err != nil {
 			continue
 		}
+		// Normalize label to lowercase to match LoadAllRainfallSeries
+		// which derives labels from sanitised filenames.
 		stations = append(stations, RainfallStationMeta{
-			Label: row[0],
+			Label: strings.ToLower(row[0]),
 			Lat:   lat,
 			Long:  lon,
 		})

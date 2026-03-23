@@ -69,9 +69,16 @@ func runMultiCalibration(dataDir string, trials, spinUp int, rng *rand.Rand) {
 		log.Fatalf("failed to load rainfall: %v", err)
 	}
 
-	// Assign stations to sub-catchments and compute averages.
-	subs := hydrology.UpperCalderSubCatchments()
-	assignment := hydrology.AssignRainfallStations(stations, subs)
+	// Assign stations to active sub-catchments only (exclude Spen Beck which
+	// is below Elland gauge and has area=0 for Elland prediction).
+	allSubs := hydrology.UpperCalderSubCatchments()
+	var activeSubs []hydrology.SubCatchment
+	for _, sc := range allSubs {
+		if sc.AreaKm2 > 0 {
+			activeSubs = append(activeSubs, sc)
+		}
+	}
+	assignment := hydrology.AssignRainfallStations(stations, activeSubs)
 	scRainfall, err := hydrology.SubCatchmentRainfall(rainfallSeries, assignment)
 	if err != nil {
 		log.Fatalf("failed to compute sub-catchment rainfall: %v", err)
@@ -104,9 +111,18 @@ func runMultiCalibration(dataDir string, trials, spinUp int, rng *rand.Rand) {
 
 	observedFlow := aligned.Flow["elland"]
 
+	// Use only sub-catchments that have rainfall data (e.g., spen is below
+	// Elland and may have no assigned stations).
+	allAreas := hydrology.SubCatchmentAreas()
+	var scNames []string
+	scAreas := make(map[string]float64)
+	for name := range rainfallData {
+		scNames = append(scNames, name)
+		scAreas[name] = allAreas[name]
+	}
 	cfg := catchment.MultiCatchmentConfig{
-		SubCatchments:  hydrology.SubCatchmentNames(),
-		CatchmentAreas: hydrology.SubCatchmentAreas(),
+		SubCatchments:  scNames,
+		CatchmentAreas: scAreas,
 	}
 
 	fmt.Printf("Running %d multi-catchment calibration trials...\n", trials)

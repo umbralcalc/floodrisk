@@ -30,6 +30,14 @@ Phases 1–3 are complete for the **Upper Calder Valley** catchment in Yorkshire
 - **Simulation-based inference** (`cmd/sbi/`): posterior estimation using the stochadex `analysis.NewPosteriorEstimationPartitions` builder — windowed embedded simulations with Normal likelihood comparison, online posterior mean and covariance tracking, and past-discounting
 - Prior centered on calibration best result with wide diagonal covariance
 
+### Phase 4: Multi-Sub-Catchment Routing (complete)
+
+- **5 sub-catchment decomposition** of the Upper Calder Valley: Ryburn (25 km²), Colne (195 km²), Holme (50 km²), Spen Beck (0 km², below Elland gauge), Upper Calder (70 km² residual)
+- **Rainfall station assignment** by Haversine distance to nearest sub-catchment gauge (24 stations → 4 active groups)
+- **Channel routing** via linear reservoir model: `routed_i(t) = K_i * upstream_i(t) + (1-K_i) * routed_i(t-1)` with per-sub-catchment routing coefficients
+- **Multi-catchment calibration** (`cmd/calibrate/ -multi`): NSE ≈ 0.23 with shared PDM parameters across sub-catchments — below single-catchment baseline (0.34), likely due to uneven rainfall station distribution and shared parameter constraint
+- **Multi-catchment SBI** (`cmd/sbi/ -multi`): posterior estimation with N rainfall + N runoff + 1 routing inner partitions, routing coefficients fixed from calibration
+
 ### Project Structure
 
 ```
@@ -50,8 +58,10 @@ go build ./...                        # compile
 go test -count=1 ./...                # run all tests
 go run ./cmd/ingest/                  # download data from EA APIs → dat/
 go run ./cmd/analyse/                 # run exploratory analysis on dat/
-go run ./cmd/calibrate/               # random-search calibration
-go run ./cmd/sbi/                     # simulation-based inference
+go run ./cmd/calibrate/               # single-catchment calibration
+go run ./cmd/calibrate/ -multi        # multi-sub-catchment calibration
+go run ./cmd/sbi/                     # single-catchment SBI
+go run ./cmd/sbi/ -multi              # multi-sub-catchment SBI
 ```
 
 ---
@@ -388,7 +398,7 @@ Once the core single-catchment model is validated:
 - [x] Smooth and aggregate observed rainfall-flow pairs into baseline response functions
 - [x] Set up SBI to learn runoff and routing parameters from observed data
 - [ ] Validate: does the fitted model reproduce held-out flood events?
-- [ ] Extend to multiple sub-catchments with channel routing between them
+- [x] Extend to multiple sub-catchments with channel routing between them
 
 ### Week 7–8: NFM interventions and decision science
 

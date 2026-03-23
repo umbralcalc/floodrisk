@@ -89,6 +89,11 @@ The `pkg/hydrology` package provides an EA Hydrology API client and data ingesti
 - `LoadTimeSeries`, `Summary`, `DetectFloodEvents`, `AnnualMaxima` — analysis utilities
 - `AverageCatchmentRainfall` — averages multiple rainfall stations into a single daily series
 - `AlignDaily` — intersects rainfall and flow time series to common date range
+- `AlignMultiCatchment` — finds common date range across multiple rainfall and flow series
+- `SubCatchment`, `UpperCalderSubCatchments()` — 5 sub-catchment definitions with gauge coordinates and areas
+- `AssignRainfallStations` — assigns rainfall stations to nearest sub-catchment by Haversine distance
+- `SubCatchmentRainfall` — averages rainfall per sub-catchment group
+- `LoadRainfallStationMeta` — reads station metadata CSV (labels normalised to lowercase)
 - `NashSutcliffe`, `RMSE`, `PeakFlowBias`, `VolumeError` — validation metrics
 
 Downloaded data lives in `dat/` (gitignored). Regenerate with `go run ./cmd/ingest/`.
@@ -99,9 +104,14 @@ The `-data` flag overrides the output directory; `-from`/`-to` control the date 
 The `pkg/catchment` package contains the rainfall-runoff model and inference infrastructure:
 
 - `RainfallRunoffIteration` — lumped PDM-style rainfall-runoff model with parallel fast/slow flow stores. State vector: `[soil_moisture_mm, total_flow_m3s, fast_flow_m3s, slow_flow_m3s]`. Supports named params or vectorized `model_params` (for SBI wiring).
-- `Calibrate`, `RunModel`, `SampleParams` — random-search calibration over 7 model parameters
-- `BuildSBI`, `SBIConfig`, `DefaultSBIConfig` — simulation-based inference using the `analysis.NewPosteriorEstimationPartitions` builder from the stochadex analysis package. Uses windowed embedded simulations with `DataGenerationIteration`, `DataComparisonIteration`, and posterior aggregation iterations.
+- `ChannelRoutingIteration` — linear reservoir routing aggregating multiple upstream sub-catchment flows. State: `[total_routed_flow, routed_0, ..., routed_N-1]`. Params: `upstream_partitions`, `routing_coefficients` (optional, defaults K=1.0).
+- `Calibrate`, `RunModel`, `SampleParams` — single-catchment random-search calibration over 7 model parameters
+- `RunMultiCatchmentModel`, `CalibrateMultiCatchment`, `MultiCatchmentConfig` — multi-sub-catchment model with N rainfall + N runoff + 1 routing partitions, shared PDM params, per-sub-catchment areas and routing coefficients
+- `BuildSBI`, `SBIConfig`, `DefaultSBIConfig` — single-catchment simulation-based inference using the stochadex `analysis.NewPosteriorEstimationPartitions` builder
+- `BuildMultiCatchmentSBI`, `MultiSBIConfig` — multi-catchment SBI with N rainfall + N runoff + 1 routing inner partitions, routing coefficients fixed from calibration
 - `ModelParamsFromMap` — converts named params to vectorized `model_params` format
+
+**Important:** Always call `Configure()` on all iterations before creating `NewPartitionCoordinator`. The coordinator does NOT call Configure itself. Forgetting this causes nil-slice panics when iterations depend on config (e.g., `ChannelRoutingIteration.upstreamIndices`).
 
 ## Testing Conventions
 
