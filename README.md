@@ -1,468 +1,299 @@
-# Flood Risk & Climate Adaptation Simulation: Project Plan
+# Flood Risk & Climate Adaptation Simulation
 
 ## Applying the Stochadex to Catchment-Level Flood Policy Optimisation
 
+This project builds a stochastic simulation of catchment-scale flood dynamics under climate change, learned from freely available UK hydrological data, with a decision science layer to evaluate natural flood management (NFM) intervention portfolios. It uses the [stochadex](https://github.com/umbralcalc/stochadex) simulation SDK.
+
+The core question: **given a catchment and projected climate trajectories, what combination of NFM interventions minimises expected flood damage, and where should they be placed?**
+
 ---
 
-## Current Status
+## Study Area
 
-Phases 1–4 are complete for the **Upper Calder Valley** catchment in Yorkshire, plus the stochastic rainfall generator, ensemble simulation framework, and NFM policy evaluation.
+The **Upper Calder Valley** in West Yorkshire was chosen for its extensive EA monitoring network, history of severe flooding (notably Boxing Day 2015), active NFM schemes, and good data coverage. The catchment is decomposed into 4 active sub-catchments:
 
-### Phase 1: Data Acquisition (complete)
+| Sub-catchment | Area (km²) | Gauge |
+|---------------|-----------|-------|
+| Ryburn | 25 | Ryburn at Ripponden |
+| Colne | 195 | Colne at Colne Bridge |
+| Holme | 50 | Holme at Holmfirth |
+| Upper Calder | 70 | Residual headwater area |
 
-- **7 flow gauging stations** ingested (River Calder at Elland and Dewsbury, plus tributaries Ryburn, Colne, Holme, and Spen Beck)
+The downstream integration point is the Elland gauging station on the River Calder.
+
+---
+
+## Data
+
+All data is freely available from Environment Agency open APIs under the Open Government Licence:
+
+- **7 flow gauging stations** — River Calder at Elland and Dewsbury, plus tributaries Ryburn, Colne, Holme, and Spen Beck
 - **24 rainfall stations** within 15 km of the catchment centre
 - **109 flood alert/warning areas** covering the catchment
-- **16 years of daily data** (2010–2025) for all stations
-- Exploratory analysis confirming the Boxing Day 2015 flood as the largest event (189.66 m³/s at Elland, ~17-year return period)
+- **16 years of daily data** (2010–2025)
 
-### Phase 2: Model Structure (complete)
+Exploratory analysis confirms the Boxing Day 2015 flood as the largest event in the record (189.66 m³/s at Elland, ~17-year empirical return period).
 
-- **PDM-style lumped rainfall-runoff model** (`RainfallRunoffIteration`) with nonlinear runoff generation and parallel fast/slow flow stores
+Data is downloaded and stored locally in `dat/` (gitignored). Regenerate with:
+
+```bash
+go run ./cmd/ingest/
+```
+
+The `-data` flag overrides the output directory; `-from`/`-to` control the date range.
+
+---
+
+## Model
+
+### Rainfall-Runoff
+
+The core hydrological model is a **PDM-style lumped rainfall-runoff** simulation (`RainfallRunoffIteration`) with:
+
+- Nonlinear runoff generation via a PDM exponent controlling partial-area saturation
+- Parallel fast (surface) and slow (baseflow) routing stores
 - State vector: `[soil_moisture_mm, total_flow_m3s, fast_flow_m3s, slow_flow_m3s]`
-- 7 calibration parameters: field capacity, drainage rate, ET rate, runoff shape (PDM exponent), fast/slow recession rates, catchment area
-- Data alignment pipeline averaging 24 rainfall stations to daily catchment mean, aligned with Elland flow gauge
-- Validation metrics: Nash-Sutcliffe Efficiency, RMSE, peak flow bias, volume error
+- 7 calibration parameters: field capacity, drainage rate, ET rate, runoff shape, fast/slow recession rates, catchment area
 
-### Phase 3: Learning from Data (complete)
+### Channel Routing
 
-- **Random-search calibration** (`cmd/calibrate/`): best NSE ≈ 0.34, volume error near zero, peak bias ≈ −0.68
-- **Simulation-based inference** (`cmd/sbi/`): posterior estimation using the stochadex `analysis.NewPosteriorEstimationPartitions` builder — windowed embedded simulations with Normal likelihood comparison, online posterior mean and covariance tracking, and past-discounting
-- Prior centered on calibration best result with wide diagonal covariance
-- **Temporal holdout validation**: trained on 2010–2022 (4748 days), tested on 2023–2025 (1095 days) — holdout NSE ≈ 0.31 vs training NSE ≈ 0.34, confirming the model generalises without significant overfitting
-- **Flood event reproduction**: 150 events detected above P95 threshold (30.7 m³/s). Boxing Day 2015 flood correctly identified as the largest event (obs 189.66 m³/s, sim 59.22 m³/s). Mean absolute peak bias ≈ 0.60 — the model consistently underestimates peaks, indicating the lumped PDM struggles with extreme event magnitudes
-
-### Phase 4: Multi-Sub-Catchment Routing (complete)
-
-- **5 sub-catchment decomposition** of the Upper Calder Valley: Ryburn (25 km²), Colne (195 km²), Holme (50 km²), Spen Beck (0 km², below Elland gauge), Upper Calder (70 km² residual)
-- **Rainfall station assignment** by Haversine distance to nearest sub-catchment gauge (24 stations → 4 active groups)
-- **Channel routing** via linear reservoir model: `routed_i(t) = K_i * upstream_i(t) + (1-K_i) * routed_i(t-1)` with per-sub-catchment routing coefficients
-- **Multi-catchment calibration** (`cmd/calibrate/ -multi`): NSE ≈ 0.23 with shared PDM parameters across sub-catchments — below single-catchment baseline (0.34), likely due to uneven rainfall station distribution and shared parameter constraint
-- **Multi-catchment SBI** (`cmd/sbi/ -multi`): posterior estimation with N rainfall + N runoff + 1 routing inner partitions, routing coefficients fixed from calibration
-
-### Stochastic Rainfall Generator & Ensemble Simulation (complete)
-
-- **Two-state Markov chain rainfall generator** (`StochasticRainfallIteration`): wet/dry day transitions (P01=0.40, P11=0.83) with Gamma-distributed wet-day amounts (shape=0.61, scale=7.94 mm), fitted from 16 years of catchment-average observations
-- **Climate perturbation** via `rainfall_multiplier` parameter — scales wet-day intensity to represent UKCP18 change factors (e.g. 1.2 = 20% increase)
-- **Ensemble simulation** (`RunEnsemble`): runs N stochastic realisations with different seeds, producing peak flow distributions — baseline mean peak ≈ 44 m³/s, P95 ≈ 49 m³/s
-- **Climate impact quantified**: 20% rainfall intensity increase → 30% increase in mean peak flows (44 → 57 m³/s), demonstrating nonlinear amplification through the catchment system
-- **Distribution fitting** (`FitGammaParams`, `FitWetDryTransitions`): automatically fits rainfall generator parameters from observed data
-
-### NFM Interventions & Policy Evaluation (complete)
-
-- **4 NFM intervention types** with uncertain effectiveness priors from WWNP evidence (linear-with-cap model to avoid unrealistic compound effects):
-  - **Leaky dams**: 5–15% total routing reduction at full deployment (~20 clusters per sub-catchment)
-  - **Woodland planting**: +5–30 mm field capacity and +0.1–0.5 mm/day ET per 10 ha (interception/infiltration)
-  - **Floodplain reconnection**: 5–15% routing reduction per site (off-channel storage), up to 3 sites
-  - **Peat restoration**: +10–40 mm field capacity per 10 ha (headwater storage)
-- **4 candidate portfolios** at different budget levels: no intervention, leaky dams only (£500k), woodland focus (£1M), mixed portfolio (£2M)
-- **5 UKCP18 climate scenarios**: baseline, RCP4.5 at 2040/2070 (+10%/+20% rainfall), RCP8.5 at 2040/2070 (+15%/+35% rainfall)
-- **Policy evaluation framework** (`cmd/evaluate/`): runs ensemble simulations for every portfolio × climate scenario combination, reporting peak flow distributions and reduction percentages
-- **Uncertainty propagation**: intervention effectiveness re-sampled per ensemble member, capturing both climate and NFM effectiveness uncertainty
-- **Key findings** (50-member ensemble, 10-year simulations):
-  - Woodland planting is the most cost-effective intervention: **12.8% peak reduction** at baseline for £1M, vs 4.9% for £500k of leaky dams
-  - NFM effectiveness **declines under extreme climate scenarios**: woodland goes from 12.8% (baseline) to 10.2% (RCP8.5 2070) — interventions can't fully offset intensifying rainfall
-  - Even the best NFM portfolio **cannot prevent climate-driven increases**: baseline peak 45 m³/s rises to 63 m³/s under RCP8.5 2070 even with woodland (+38% vs no-intervention baseline)
-  - The mixed £2M portfolio (10.5–11.3% reduction) underperforms the £1M woodland focus — more isn't always better; intervention mix and placement matter
-
-### Project Structure
+Sub-catchment flows are aggregated via a **linear reservoir routing model** (`ChannelRoutingIteration`):
 
 ```
-cmd/ingest/       CLI to download EA Hydrology, Rainfall, and Flood area data
-cmd/analyse/      CLI to run exploratory analysis on downloaded data
-cmd/calibrate/    CLI for random-search model calibration
-cmd/sbi/          CLI for simulation-based inference (posterior estimation)
-cmd/evaluate/     CLI for NFM policy evaluation across climate scenarios
-pkg/hydrology/    EA API client, catchment config, data ingestion, alignment, and metrics
-pkg/catchment/    Rainfall-runoff model, calibration, SBI builder, interventions, and policy evaluation
-cfg/              Stochadex YAML simulation configs
-dat/              Downloaded CSV data (gitignored, regenerable via cmd/ingest)
+routed_i(t) = K_i * upstream_i(t) + (1 - K_i) * routed_i(t-1)
 ```
 
-### Quick Start
+with per-sub-catchment routing coefficients K_i. This is where leaky dam and floodplain reconnection interventions act — by reducing K, they attenuate and delay peak flows.
+
+### Stochastic Rainfall Generator
+
+A **two-state Markov chain** (`StochasticRainfallIteration`) generates synthetic daily rainfall:
+
+- Wet/dry day transitions fitted from 16 years of observations
+- Gamma-distributed wet-day amounts
+- Climate perturbation via a multiplicative `rainfall_multiplier` parameter
+
+Fitted parameters from the Upper Calder data:
+
+| Parameter | Value |
+|-----------|-------|
+| Gamma shape | 0.61 |
+| Gamma scale | 7.94 mm |
+| P(wet\|dry) | 0.40 |
+| P(wet\|wet) | 0.83 |
+
+---
+
+## Calibration & Validation
+
+### Single-Catchment Calibration
+
+Random-search calibration (5000 trials) against observed daily flow at Elland:
+
+| Metric | Value |
+|--------|-------|
+| Nash-Sutcliffe Efficiency | 0.34 |
+| Volume error | ~0 |
+| Peak flow bias | -0.68 |
+
+Best-fit parameters: FC=332 mm, drainage rate=0.029, ET=1.12 mm/day, runoff shape=2.67, fast recession=0.40, slow recession=0.32, area=297 km².
+
+### Temporal Holdout
+
+Trained on 2010–2022 (4748 days), tested on 2023–2025 (1095 days):
+
+| Period | NSE |
+|--------|-----|
+| Training | 0.34 |
+| Holdout | 0.31 |
+
+The small drop confirms the model generalises without significant overfitting.
+
+### Flood Event Reproduction
+
+150 flood events detected above the P95 threshold (30.7 m³/s). The model correctly identifies the Boxing Day 2015 flood as the largest event (observed 189.66 m³/s, simulated 59.22 m³/s). Mean absolute peak bias across all events is 0.60 — the lumped PDM consistently underestimates extreme peaks, a known limitation of this model class.
+
+### Multi-Catchment
+
+Multi-sub-catchment calibration with shared PDM parameters achieves NSE ≈ 0.23, below the single-catchment baseline. This is expected given the uneven rainfall station distribution across sub-catchments and the shared parameter constraint.
+
+### Simulation-Based Inference
+
+Posterior estimation uses the stochadex `analysis.NewPosteriorEstimationPartitions` builder — windowed embedded simulations with Normal likelihood comparison, online posterior mean and covariance tracking, and past-discounting. Available in both single-catchment and multi-catchment configurations.
+
+---
+
+## NFM Interventions
+
+Four intervention types are modelled as **stochastic parameter modifiers**, with effectiveness priors drawn from the EA Working with Natural Processes (WWNP) evidence directory. Each ensemble member samples its own effectiveness values, propagating uncertainty.
+
+A **linear-with-cap** model is used for routing interventions to avoid unrealistic compound effects:
+
+```
+total_reduction = min(Scale / FullScale * sampled_max, sampled_max)
+routing_factor = 1.0 - total_reduction
+```
+
+| Intervention | Mechanism | Prior Range |
+|-------------|-----------|-------------|
+| Leaky dams | Routing attenuation (reduces K) | 5–15% total reduction at full deployment |
+| Woodland planting | +Field capacity, +ET rate | +5–30 mm FC, +0.1–0.5 mm/day ET per 10 ha |
+| Floodplain reconnection | Routing attenuation (off-channel storage) | 5–15% reduction per site, up to 3 sites |
+| Peat restoration | +Field capacity (headwater storage) | +10–40 mm per 10 ha |
+
+### Candidate Portfolios
+
+| Portfolio | Interventions | Cost |
+|-----------|--------------|------|
+| No intervention | Baseline | £0 |
+| Leaky dams only | 40 clusters across Ryburn, Upper Calder, Colne | £500k |
+| Woodland focus | 120 ha across Ryburn, Upper Calder, Colne | £1M |
+| Mixed | Leaky dams + woodland + floodplain reconnection + peat | £2M |
+
+---
+
+## Climate Scenarios
+
+UKCP18-informed rainfall intensity multipliers:
+
+| Scenario | Rainfall Multiplier | Interpretation |
+|----------|-------------------|----------------|
+| Baseline | 1.00 | Current climate |
+| RCP4.5 2040 | 1.10 | +10% wet-day intensity |
+| RCP4.5 2070 | 1.20 | +20% wet-day intensity |
+| RCP8.5 2040 | 1.15 | +15% wet-day intensity |
+| RCP8.5 2070 | 1.35 | +35% wet-day intensity |
+
+---
+
+## Policy Evaluation Results
+
+50-member ensembles, 10-year (3650-day) simulations per portfolio per scenario.
+
+### Peak Flow Distributions (m³/s)
+
+| Portfolio | Scenario | Mean Peak | Std Peak | P95 Peak | Max Peak |
+|-----------|----------|----------|---------|---------|---------|
+| no_intervention | baseline | 45.44 | 6.96 | 58.04 | 61.99 |
+| no_intervention | RCP4.5_2040 | 52.06 | 7.90 | 66.71 | 71.40 |
+| no_intervention | RCP4.5_2070 | 58.73 | 8.72 | 76.12 | 81.04 |
+| no_intervention | RCP8.5_2040 | 55.55 | 8.35 | 71.38 | 76.20 |
+| no_intervention | RCP8.5_2070 | 69.62 | 10.32 | 90.66 | 95.86 |
+| leaky_dams_only | baseline | 43.23 | 6.58 | 55.87 | 58.83 |
+| leaky_dams_only | RCP8.5_2070 | 66.23 | 9.77 | 84.88 | 90.97 |
+| woodland_focus | baseline | 39.63 | 6.26 | 49.71 | 56.86 |
+| woodland_focus | RCP8.5_2070 | 62.53 | 9.49 | 80.87 | 89.47 |
+| mixed_portfolio | baseline | 40.32 | 6.32 | 51.77 | 54.67 |
+| mixed_portfolio | RCP8.5_2070 | 62.68 | 9.46 | 80.49 | 85.98 |
+
+### Peak Flow Reduction vs No Intervention
+
+| Portfolio | Baseline | RCP4.5 2040 | RCP4.5 2070 | RCP8.5 2040 | RCP8.5 2070 |
+|-----------|---------|------------|------------|------------|------------|
+| Leaky dams only (£500k) | 4.9% | 4.9% | 4.9% | 4.9% | 4.9% |
+| Woodland focus (£1M) | 12.8% | 11.9% | 11.2% | 11.5% | 10.2% |
+| Mixed portfolio (£2M) | 11.3% | 10.9% | 10.5% | 10.7% | 10.0% |
+
+### Key Findings
+
+1. **Woodland planting is the most cost-effective intervention.** At £1M, the woodland focus portfolio achieves 12.8% peak reduction under baseline climate — more than double the 4.9% from £500k of leaky dams, and outperforming the £2M mixed portfolio (11.3%).
+
+2. **NFM effectiveness declines under extreme climate.** Woodland reduction falls from 12.8% at baseline to 10.2% under RCP8.5 2070. The interventions reduce absolute flow levels, but the percentage reduction shrinks as the climate-driven peak grows. Leaky dam effectiveness is constant (4.9%) because routing attenuation is a fixed proportional effect.
+
+3. **NFM alone cannot offset climate-driven increases.** Even with the best portfolio, baseline peak flow of 45 m³/s rises to 63 m³/s under RCP8.5 2070 (+38% vs no-intervention baseline). NFM buys time and reduces severity, but does not eliminate climate risk.
+
+4. **More investment is not always better.** The £2M mixed portfolio underperforms the £1M woodland focus. This reflects the interaction between intervention types — mixing interventions dilutes the allocation to the most effective one (woodland) without enough compensating benefit from the others.
+
+5. **Nonlinear climate amplification.** A 35% increase in rainfall intensity (RCP8.5 2070) produces a 53% increase in mean peak flow (45→70 m³/s), demonstrating how catchment hydrology amplifies rainfall changes through soil saturation and nonlinear runoff generation.
+
+---
+
+## Visualisations
+
+Interactive plots are available in the GoNB notebook at [`nbs/policy_evaluation.ipynb`](nbs/policy_evaluation.ipynb). The notebook reproduces the full pipeline — calibration, rainfall generator fitting, policy evaluation, and plotting — using the [GoNB](https://github.com/janpfeifer/gonb) Jupyter kernel with [go-echarts](https://github.com/go-echarts/go-echarts) scatter plots via the stochadex `analysis.NewScatterPlotFromDataFrame` helper.
+
+Plots include:
+- Mean and P95 peak flow by portfolio and climate scenario
+- Percentage peak flow reduction vs no intervention
+- Climate sensitivity: rainfall multiplier vs mean peak flow, grouped by portfolio
+
+---
+
+## Running the Code
+
+### Prerequisites
+
+- Go 1.22+
+- Internet access for initial data download
+
+### Commands
 
 ```bash
 go build ./...                        # compile
 go test -count=1 ./...                # run all tests
-go run ./cmd/ingest/                  # download data from EA APIs → dat/
-go run ./cmd/analyse/                 # run exploratory analysis on dat/
+
+go run ./cmd/ingest/                  # download EA data → dat/
+go run ./cmd/analyse/                 # exploratory analysis on dat/
 go run ./cmd/calibrate/               # single-catchment calibration
 go run ./cmd/calibrate/ -multi        # multi-sub-catchment calibration
 go run ./cmd/sbi/                     # single-catchment SBI
 go run ./cmd/sbi/ -multi              # multi-sub-catchment SBI
-go run ./cmd/evaluate/                # NFM policy evaluation across climate scenarios
+go run ./cmd/evaluate/                # NFM policy evaluation
+```
+
+### Project Structure
+
+```
+cmd/ingest/       Download EA Hydrology, Rainfall, and Flood area data
+cmd/analyse/      Exploratory analysis on downloaded data
+cmd/calibrate/    Random-search model calibration
+cmd/sbi/          Simulation-based inference (posterior estimation)
+cmd/evaluate/     NFM policy evaluation across climate scenarios
+pkg/hydrology/    EA API client, catchment config, data ingestion, alignment, metrics
+pkg/catchment/    Rainfall-runoff model, calibration, SBI, interventions, policy evaluation
+cfg/              Stochadex YAML simulation configs
+dat/              Downloaded CSV data (gitignored, regenerable via cmd/ingest)
+nbs/              GoNB Jupyter notebooks for interactive analysis and visualisation
 ```
 
 ---
 
-## Overview
+## Limitations & Future Work
 
-Build a stochastic simulation of catchment-scale flood dynamics under climate change, learned from freely available UK hydrological, meteorological and land-use data, with a decision science layer to evaluate and optimise natural flood management (NFM) intervention portfolios.
+**Current limitations:**
 
-The core question: **given the current state of a catchment and projected climate trajectories, what combination of interventions minimises expected flood damage over 10–50 years, and where should they be placed?**
+- The lumped PDM model consistently underestimates extreme peaks (mean absolute peak bias 0.60). A distributed or event-based model would improve peak reproduction.
+- Single daily timestep misses sub-daily flood dynamics. Hourly resolution would better capture flashy upland responses.
+- NFM effectiveness priors are drawn from literature ranges, not catchment-specific monitoring. Local calibration data would reduce uncertainty.
+- The stochastic rainfall generator uses a simple wet/dry Markov chain. Multi-site spatial correlation and seasonal variation are not captured.
 
----
+**Planned extensions:**
 
-## Why This Problem
-
-- Flooding is the UK's most expensive natural hazard, costing approximately £2.2 billion annually, projected to rise 19–49% by the 2050s according to the UK Climate Change Risk Assessment.
-- One in six houses across the UK is currently at risk of flooding.
-- Under a high emissions scenario, UKCP18 projections suggest UK rainfall events exceeding 20mm/hr could be four times as frequent by 2080 compared to the 1980s.
-- Natural flood management (NFM) schemes show promising cost-benefit ratios — Wildlife Trust research found an average 4:1 over 10 years, rising to 10:1 over 30 years — but councils and water companies lack good tools for deciding *which* interventions to deploy, *where* in a catchment, and *in what combination*.
-- Evidence on NFM effectiveness is highly variable: leaky dams reduced flood peaks by ~10% on average for events up to 1-year return period in one upland study, but effectiveness depends heavily on event magnitude, catchment characteristics, and spatial placement. Existing models rarely propagate this uncertainty properly.
-
----
-
-## The Gap This Fills
-
-Existing flood modelling falls into camps that don't do what the stochadex enables:
-
-| Approach | Examples | Limitation |
-|----------|----------|------------|
-| Deterministic hydrodynamic models | HEC-RAS, TUFLOW, MIKE FLOOD, LISFLOOD-FP | Excellent for single-event flood mapping, but don't natively handle stochastic rainfall, uncertain NFM effectiveness, or policy optimisation |
-| Rainfall-runoff models | HEC-HMS, SWMM, SWAT | Good at catchment hydrology, but typically event-based or deterministic continuous; don't integrate decision science |
-| Statistical flood frequency analysis | FEH methods, extreme value distributions | Estimate return periods but can't evaluate intervention portfolios or simulate NFM effects |
-| Machine learning approaches | Random forests, ANNs for flood susceptibility mapping | Predict flood risk from static features but don't simulate dynamic interventions or future climate |
-
-**The stochadex differentiator:** a generalised stochastic simulation that learns catchment dynamics from observed hydrological data, propagates rainfall uncertainty from climate projections through the system, models NFM interventions as stochastic modifiers of flow attenuation, and uses the decision science layer to optimise intervention portfolios — the same "simulate, learn, decide" pattern proven across rugby, fishing, COVID, helminth, and LOB projects.
+- **Multi-catchment library** — repeat for 5–10 UK catchments with different characteristics to build transferable insights
+- **Grey + green integration** — add engineered defences alongside NFM to evaluate hybrid portfolios
+- **Dynamic adaptation pathways** — model sequential decision-making ("plant woodland now, add leaky dams in year 5 if trends are adverse")
+- **Insurance integration** — connect flood damage outputs to insurance loss models
+- **Real-time operational mode** — connect to live EA flood monitoring for real-time decisions during events
 
 ---
 
-## Phase 1: Data Ingestion
+## Data Sources
 
-### 1.1 Hydrological monitoring data
-
-**Source: Environment Agency Hydrology API**
-
-- Open data under the Open Government Licence, no registration required
-- Nearly 8,000 monitoring stations across England
-- Sub-daily (15-minute) resolution time series for river flows, river levels, groundwater levels, and rainfall
-- Quality-checked and qualified archive data, many records back to the 1960s+
-- CSV and JSON download via REST API
-
-**API base:** `https://environment.data.gov.uk/hydrology/`
-
-**Key endpoints:**
-```
-# List all flow stations
-/hydrology/id/stations?observedProperty=waterFlow
-
-# Get 15-min flow readings for a station
-/hydrology/id/measures/{measure-id}/readings?mineq-date=2020-01-01&max-date=2024-01-01
-
-# Daily mean flows (qualified, quality-checked)
-/hydrology/id/measures/{measure-id}-flow-m-86400-m3s-qualified/readings
-```
-
-**Source: National River Flow Archive (NRFA)**
-
-- UK's official record of river flow data, over 1,600 gauging stations
-- Peak flow dataset for flood frequency estimation (downloadable for WINFAP software)
-- Long-term records enabling trend analysis for climate change impact assessment
-
-### 1.2 Real-time flood monitoring
-
-**Source: EA Flood Monitoring API**
-
-- Real-time flood warnings, alerts, and 3-day risk forecasts
-- Water level and flow measurements, typically every 15 minutes
-- Historical flood event data
-- Open data, no registration
-
-**API base:** `https://environment.data.gov.uk/flood-monitoring/`
-
-**Key endpoints:**
-```
-# Current flood warnings
-/flood-monitoring/id/floods
-
-# All latest readings
-/flood-monitoring/data/readings?latest
-
-# Historical archive (daily CSV dumps)
-/flood-monitoring/archive/readings-{date}.csv
-```
-
-### 1.3 Rainfall data
-
-**Source: EA Rainfall API**
-
-- Part of the 10-API EA catalogue alongside hydrology, flood monitoring, water quality, etc.
-- Station-based rainfall time series, sub-daily resolution
-
-**Source: Met Office HadUK-Grid (via UKCP User Interface)**
-
-- Gridded observations at 1km resolution
-- Daily rainfall, temperature, and other variables
-- Available through the UKCP User Interface (registration required) and CEDA Archive
-
-### 1.4 Climate projections
-
-**Source: UKCP18 (UK Climate Projections 2018)**
-
-- Probabilistic projections across five emission scenarios (RCP2.6 to RCP8.5)
-- Global (60km), Regional (12km), and Local (2.2km convection-permitting) resolutions
-- Precipitation, temperature, and other variables
-- Available via CEDA Archive and UKCP User Interface
-- Bias-corrected versions available from UEA CRU under Open Database Licence
-
-**Key dataset for this project:** UKCP18 convection-permitting model (CPM) widespread rainfall events for three periods (1980–2000, 2020–2040, 2060–2080), covering ~72,000 event summaries under RCP8.5 for 12 ensemble members. Available under Open Government Licence.
-
-### 1.5 Flood risk and catchment data
-
-**Source: EA Risk of Flooding from Rivers and Sea**
-
-- Open data (since December 2014) showing flood likelihood across England
-- Considers location, height, and condition of flood defences
-- Four risk categories, available at postcode level
-
-**Source: EA Catchment Data API**
-
-- Catchment boundaries and characteristics
-- Land use, soil type, and topographic data by catchment
-
-### 1.6 Natural flood management evidence
-
-**Source: EA Working with Natural Processes (WWNP) Evidence Directory**
-
-- Over 700 studies on NFM effectiveness compiled by the Environment Agency
-- Quantitative evidence on leaky dams, woodland planting, peat restoration, floodplain reconnection, beaver reintroduction
-- Site-specific monitoring data from schemes like Pickering ("Slowing the Flow"), Pontbren, and River Otter beaver trial
-
-### 1.7 Initial data scope
-
-Start with a single, well-instrumented catchment to prove the concept:
-
-- **Primary candidate:** Upper Calder Valley or Aire catchment (Yorkshire) — extensive EA monitoring, history of flooding (Boxing Day 2015), active NFM schemes, good data coverage
-- **Alternative:** Severn upper catchment — long flow records, mixed land use, LISFLOOD-FP already validated there
-- **Time window:** 2010–2025 for model fitting, UKCP18 projections to 2080 for policy evaluation
-- **Resolution:** Sub-daily (hourly aggregation of 15-min data) to capture flood peak dynamics
+| Source | Data | Access |
+|--------|------|--------|
+| EA Hydrology API | River flow, level, groundwater, rainfall | Open Government Licence |
+| EA Flood Monitoring API | Real-time flood warnings, levels, flows | Open Government Licence |
+| NRFA | UK river flow records, peak flow dataset | Free download |
+| UKCP18 | Climate projections (probabilistic, 12km, 2.2km) | CEDA Archive |
+| EA WWNP Evidence Directory | 700+ studies on NFM effectiveness | Free PDF |
 
 ---
 
-## Phase 2: Model Structure
+## References
 
-### 2.1 State variables
-
-The stochadex simulation tracks the catchment as a coupled stochastic system:
-
-1. **Rainfall process** — stochastic rainfall event generation, learned from observed distributions and perturbed by UKCP18 climate scenarios. This is the exogenous driver.
-2. **Soil moisture state** — antecedent wetness conditions determining runoff generation, with stochastic dynamics driven by rainfall, evapotranspiration, and drainage
-3. **Runoff generation** — stochastic transformation of rainfall to runoff, modulated by land use, soil type, and current moisture state. Key process where NFM interventions act.
-4. **Channel routing** — stochastic flow propagation through the river network, with travel time and attenuation parameters. Leaky dams and floodplain reconnection modify these.
-5. **Flood state** — river level/flow at key points, with threshold exceedance determining flood damage. The observable output the model must match.
-
-### 2.2 Simulation diagram
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                  CLIMATE SCENARIO                        │
-│  UKCP18 projections perturb rainfall distributions       │
-│  RCP2.6 / RCP4.5 / RCP8.5 pathways                     │
-└──────────────────┬──────────────────────────────────────┘
-                   │ modified rainfall regime
-                   ▼
-┌─────────────────────────────────────────────────────────┐
-│              STOCHASTIC RAINFALL GENERATOR               │
-│  Event magnitude, duration, spatial pattern              │
-│  Learned from EA rainfall + HadUK-Grid observations      │
-│  Perturbed by UKCP18 change factors                      │
-└──────────┬──────────────────────────────────────────────┘
-           │ rainfall events
-           ▼
-┌─────────────────────────────────────────────────────────┐
-│              SOIL MOISTURE DYNAMICS                       │
-│  Antecedent conditions (stochastic, seasonal)            │
-│  INTERVENTION: Peat restoration ↑ storage capacity       │
-│  INTERVENTION: Woodland planting ↑ interception          │
-│               & evapotranspiration                        │
-└──────────┬──────────────────────────────────────────────┘
-           │ effective rainfall (after losses)
-           ▼
-┌─────────────────────────────────────────────────────────┐
-│             RUNOFF GENERATION                             │
-│  Hillslope response (stochastic, land-use dependent)     │
-│  INTERVENTION: Woodland ↑ infiltration (up to 60×)       │
-│  INTERVENTION: Soil management ↑ permeability            │
-│  INTERVENTION: Storage bunds ↑ field-corner retention    │
-└──────────┬──────────────────────────────────────────────┘
-           │ sub-catchment hydrographs
-           ▼
-┌─────────────────────────────────────────────────────────┐
-│             CHANNEL ROUTING                               │
-│  Network flow propagation with stochastic travel times   │
-│  INTERVENTION: Leaky dams ↑ attenuation, ↓ peak         │
-│  INTERVENTION: Floodplain reconnection ↑ storage         │
-│  INTERVENTION: Beaver reintroduction ↑ wetland storage   │
-│  Key: spatial placement affects peak synchronisation     │
-└──────────┬──────────────────────────────────────────────┘
-           │ river flow at gauging stations
-           ▼
-┌─────────────────────────────────────────────────────────┐
-│             FLOOD STATE & DAMAGE                          │
-│  Level/flow at critical points vs. threshold             │
-│  Properties at risk (from EA risk mapping)               │
-│  Expected damage = f(depth, duration, properties)        │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 2.3 Key modelling choices
-
-- **Lumped sub-catchment approach** initially: divide the catchment into ~10–30 sub-catchments, each with homogeneous land-use and soil characteristics. Not a full 2D hydrodynamic model — that's not the point. The stochadex adds value through stochastic dynamics and policy optimisation, not through spatial hydraulic resolution.
-- **Stochastic rainfall generator** learned from observed statistics (fitted distributions of event magnitude, duration, inter-arrival time), perturbed by UKCP18 change factors for future scenarios.
-- **NFM interventions as parameter modifiers**: each intervention type changes specific simulation parameters (e.g. leaky dams modify channel attenuation coefficients; woodland changes interception and infiltration rates). The magnitude of the effect is itself uncertain — modelled as a distribution learned from the WWNP evidence base.
-- **Time resolution:** hourly for simulation, with sub-daily EA data used for calibration.
-- **Ensemble approach:** run hundreds of stochastic realisations per policy scenario to build distributions of flood outcomes.
-
----
-
-## Phase 3: Learning from Data
-
-### 3.1 Simulation-based inference
-
-The stochadex's established pattern applies directly:
-
-1. **Smooth and aggregate** the EA Hydrology API flow data and rainfall data to produce baseline event rates — "what the catchment does" in response to different rainfall patterns and antecedent conditions.
-2. **Fit deviation coefficients** using SBI, matching simulated flow hydrographs at gauging stations to observed data, conditional on the observed rainfall inputs.
-3. **Key parameters to learn:**
-   - Runoff coefficients by sub-catchment (effective rainfall → runoff)
-   - Channel routing velocities and attenuation parameters
-   - Soil moisture dynamics (drainage rate, field capacity, saturation threshold)
-   - Seasonal variation in evapotranspiration and interception
-   - Flood threshold-damage relationship
-
-### 3.2 NFM effectiveness parameters
-
-Rather than hard-coding NFM effects from literature, treat them as uncertain parameters with prior distributions informed by the WWNP evidence:
-
-| Intervention | Effect parameter | Prior (from evidence) |
-|-------------|-----------------|----------------------|
-| Leaky dams (per cluster) | Peak flow attenuation (%) | 5–15% for events ≤ 1yr RP, declining for larger events |
-| Woodland planting (per ha) | Infiltration multiplier | 2–60× depending on soil and maturity (Pontbren) |
-| Woodland planting (per ha) | Interception loss (%) | Up to 30% of gross rainfall |
-| Floodplain reconnection | Storage volume (m³) | Site-specific, from EA evidence |
-| Peat restoration (per ha) | Water table depth change (cm) | 5–20cm from rewetting studies |
-| Beaver reintroduction | Peak flow attenuation (%) | Up to 30% in well-established sites (River Otter) |
-
-Where possible, update these priors with data from specific monitored NFM schemes in or near the target catchment.
-
-### 3.3 Validation strategy
-
-- **Temporal holdout:** Train on 2010–2022, validate flood predictions on 2023–2025 events.
-- **Event holdout:** Withhold specific major flood events (e.g. Boxing Day 2015 if using Yorkshire catchments) from training, test whether the model reproduces observed peak flows.
-- **Cross-catchment:** Check whether parameters transfer to an adjacent catchment with similar characteristics.
-- **NFM validation:** Where monitored before/after data exists for an NFM scheme within the catchment, check whether the model's predicted effect is consistent with observed change.
-
----
-
-## Phase 4: Decision Science Layer
-
-### 4.1 Intervention actions to evaluate
-
-The decision science layer evaluates portfolios of NFM interventions — the analogue of rugby substitution timing:
-
-| Intervention | Where it acts in the model | Decision variables |
-|-------------|---------------------------|-------------------|
-| **Leaky dam clusters** | Channel routing attenuation | Number, location (which sub-catchments), density |
-| **Woodland planting** | Interception, infiltration, evapotranspiration | Area (ha), location, species mix (maturity timeline) |
-| **Floodplain reconnection** | Off-channel storage volume | Location, area reconnected |
-| **Storage bunds** | Field-corner runoff detention | Number, location, capacity |
-| **Peat restoration** | Headwater soil moisture storage | Area, rewetting intensity |
-| **Beaver reintroduction** | Headwater wetland creation | Location (which tributaries) |
-
-### 4.2 The spatial placement problem
-
-A crucial insight from the NFM literature is that spatial targeting of interventions matters enormously. Poorly placed NFM can *synchronise* rather than *desynchronise* flood peaks from tributaries, potentially increasing downstream flood risk. The stochadex's ensemble simulation approach is ideally suited to exploring this — run thousands of realisations with different placement strategies and evaluate the distribution of downstream outcomes.
-
-### 4.3 Objective function
-
-For each intervention portfolio, simulate multiple trajectories across stochastic rainfall scenarios and evaluate:
-
-- **Primary outcome:** Expected annual damage (EAD) at the downstream flood-risk community, under current climate and UKCP18 scenarios at 2040 and 2070
-- **Constraint:** Total intervention cost ≤ budget (using EA standard cost estimates for NFM measures)
-- **Secondary outcomes:** Number of properties protected, reduction in peak flow at key gauging points, co-benefits (carbon sequestration from woodland, biodiversity uplift)
-- **Robustness metric:** Performance across climate scenarios (does the portfolio work under RCP2.6 and RCP8.5?)
-
-### 4.4 Output
-
-For each catchment, produce actionable recommendations:
-
-> *"For the Upper Calder catchment under a £2M budget, a portfolio of 40 leaky dam clusters in tributaries X and Y combined with 50ha of riparian woodland in sub-catchments A and B reduces expected annual damage by 35% under RCP4.5, with the woodland component taking 15 years to reach full effectiveness. This portfolio is robust across emission scenarios, with EAD reduction ranging from 28% (RCP8.5) to 42% (RCP2.6). Concentrating all investment in leaky dams alone would yield only 18% EAD reduction due to declining effectiveness for larger events."*
-
----
-
-## Phase 5: Extensions
-
-Once the core single-catchment model is validated:
-
-1. **Multi-catchment library:** Repeat for 5–10 UK catchments with different characteristics (upland/lowland, urban/rural, permeable/impermeable) to build a library of transferable insights
-2. **Grey + green integration:** Add engineered defences (walls, embankments, reservoirs) alongside NFM to evaluate hybrid portfolios — councils need to compare and combine both
-3. **Dynamic adaptation pathways:** Instead of fixed portfolios, model sequential decision-making — "plant woodland now, add leaky dams in year 5 if resistance trends are adverse" — using the stochadex's temporal decision framework
-4. **Insurance integration:** Connect flood damage outputs to insurance loss models, enabling re/insurers to price the value of NFM investments
-5. **Real-time operational mode:** Connect to live EA flood monitoring API for real-time reservoir operation or temporary barrier deployment decisions during events
-6. **Community engagement tool:** Build a simplified interactive front-end where local flood groups can explore "what if we planted woodland here?" scenarios for their own catchment
-
----
-
-## Concrete First Steps
-
-### Week 1–2: Data acquisition and exploration
-
-- [x] Identify target catchment and list all EA gauging stations within it
-- [x] Pull daily flow data from EA Hydrology API for those stations (2010–2025)
-- [x] Pull co-located rainfall station data from EA Rainfall API
-- [ ] Download HadUK-Grid daily rainfall for the catchment area
-- [x] Download EA Risk of Flooding from Rivers and Sea data for the catchment
-- [x] Exploratory analysis: characterise the rainfall-runoff relationship, identify major flood events, estimate empirical flood frequency curves
-
-### Week 3–4: Minimal stochadex simulation
-
-- [x] Implement a lumped rainfall-runoff simulation for one sub-catchment in the stochadex
-- [x] Define state transitions: rainfall → soil moisture → runoff → channel flow → flood state
-- [x] Implement a simple stochastic rainfall generator (fitted to observed event statistics)
-- [x] Verify the simulation produces qualitatively sensible hydrographs with hand-tuned parameters
-
-### Week 5–6: Simulation-based inference
-
-- [x] Smooth and aggregate observed rainfall-flow pairs into baseline response functions
-- [x] Set up SBI to learn runoff and routing parameters from observed data
-- [x] Validate: does the fitted model reproduce held-out flood events?
-- [x] Extend to multiple sub-catchments with channel routing between them
-
-### Week 7–8: NFM interventions and decision science
-
-- [x] Add NFM intervention parameter modifiers (leaky dams, woodland, floodplain reconnection, peat restoration) with uncertain effectiveness priors from WWNP evidence
-- [x] Implement 3–4 candidate intervention portfolios as action sets
-- [x] Perturb rainfall with UKCP18 change factors for 2040 and 2070 scenarios
-- [x] Run policy evaluation: simulate ensembles under each portfolio × climate scenario
-- [ ] Produce initial findings and visualisations
-
----
-
-## Key Data Sources Summary
-
-| Source | URL | Data type | Access |
-|--------|-----|-----------|--------|
-| EA Hydrology API | environment.data.gov.uk/hydrology/ | River flow, level, groundwater, rainfall — sub-daily, quality-checked archive | Free REST API, Open Government Licence |
-| EA Flood Monitoring API | environment.data.gov.uk/flood-monitoring/ | Real-time flood warnings, levels, flows, 3-day risk forecast | Free REST API, Open Government Licence |
-| EA Rainfall API | api.gov.uk/ea/ (part of 10-API catalogue) | Station rainfall time series | Free REST API, Open Government Licence |
-| NRFA | nrfa.ceh.ac.uk | UK river flow records, peak flow dataset, 1,600+ stations | Free download |
-| HadUK-Grid / UKCP18 | climate-themetoffice.hub.arcgis.com | Gridded observations + climate projections (probabilistic, 12km, 2.2km) | Registration required (UKCP UI) or CEDA Archive |
-| UKCP18 bias-corrected | crudata.uea.ac.uk/cru/data/ukcp/ukcp18bc.htm | Bias-corrected precipitation and temperature, 12km | Open Database Licence |
-| UKCP18 CPM rainfall events | catalogue.ceh.ac.uk (DOI: 10.5285/0d786a81...) | ~72,000 widespread rainfall event summaries, 3 time periods | Open Government Licence |
-| EA Risk of Flooding | data.gov.uk (search "Risk of Flooding from Rivers and Sea") | Flood likelihood maps, postcode-level risk | Open Government Licence |
-| EA Catchment Data API | api.gov.uk/ea/ | Catchment boundaries, characteristics | Free REST API |
-| EA WWNP Evidence Directory | gov.uk (search "Working with Natural Processes") | 700+ studies on NFM effectiveness | Free PDF |
-
----
-
-## References and Related Work
-
-- EA "Working with Natural Processes" evidence directory — comprehensive NFM effectiveness evidence including river/floodplain management guidance (updated February 2025)
+- EA "Working with Natural Processes" evidence directory (updated February 2025)
 - Leaky dam quantification study — transfer function noise modelling for 50 upland storm events showing ~10% peak reduction for ≤1yr return period (ScienceDirect, 2023)
-- Pickering "Slowing the Flow" — combined riparian woodland, leaky structures, and bund reduced peak flows by 15–20%; cost £500k vs. millions for hard defences
+- Pickering "Slowing the Flow" — combined riparian woodland, leaky structures, and bund reduced peak flows by 15–20%
 - Wildlife Trusts NFM research — 10 schemes averaged 4:1 cost-benefit over 10 years, 10:1 over 30 years
-- River Otter beaver trial — beaver dams attenuated flood flows by ~30% on average, even in high flow conditions
-- UKCP18 Local (2.2km) projections — convection-permitting model capturing extreme rainfall events missed by coarser models
-- LFPtools — open-source Python toolbox for LISFLOOD-FP flood model preparation, validated on the Severn
-- HEC-RAS, HEC-HMS — US Army Corps open-source hydraulic and hydrologic modelling (useful for comparison/validation, not the core simulation approach here)
+- River Otter beaver trial — beaver dams attenuated flood flows by ~30% on average
+- UKCP18 Local (2.2km) projections — convection-permitting model capturing extreme rainfall events
