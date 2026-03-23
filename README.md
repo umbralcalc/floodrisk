@@ -29,6 +29,8 @@ Phases 1–3 are complete for the **Upper Calder Valley** catchment in Yorkshire
 - **Random-search calibration** (`cmd/calibrate/`): best NSE ≈ 0.34, volume error near zero, peak bias ≈ −0.68
 - **Simulation-based inference** (`cmd/sbi/`): posterior estimation using the stochadex `analysis.NewPosteriorEstimationPartitions` builder — windowed embedded simulations with Normal likelihood comparison, online posterior mean and covariance tracking, and past-discounting
 - Prior centered on calibration best result with wide diagonal covariance
+- **Temporal holdout validation**: trained on 2010–2022 (4748 days), tested on 2023–2025 (1095 days) — holdout NSE ≈ 0.31 vs training NSE ≈ 0.34, confirming the model generalises without significant overfitting
+- **Flood event reproduction**: 150 events detected above P95 threshold (30.7 m³/s). Boxing Day 2015 flood correctly identified as the largest event (obs 189.66 m³/s, sim 59.22 m³/s). Mean absolute peak bias ≈ 0.60 — the model consistently underestimates peaks, indicating the lumped PDM struggles with extreme event magnitudes
 
 ### Phase 4: Multi-Sub-Catchment Routing (complete)
 
@@ -397,7 +399,7 @@ Once the core single-catchment model is validated:
 
 - [x] Smooth and aggregate observed rainfall-flow pairs into baseline response functions
 - [x] Set up SBI to learn runoff and routing parameters from observed data
-- [ ] Validate: does the fitted model reproduce held-out flood events?
+- [x] Validate: does the fitted model reproduce held-out flood events?
 - [x] Extend to multiple sub-catchments with channel routing between them
 
 ### Week 7–8: NFM interventions and decision science

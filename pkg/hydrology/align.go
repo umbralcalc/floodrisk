@@ -276,3 +276,40 @@ func ToStorageData(values []float64) [][]float64 {
 	}
 	return data
 }
+
+// SplitTimeSeries splits a TimeSeries at the given date. All observations
+// strictly before splitDate go into "before", all others into "after".
+func SplitTimeSeries(ts *TimeSeries, splitDate time.Time) (before, after *TimeSeries) {
+	before = &TimeSeries{Label: ts.Label}
+	after = &TimeSeries{Label: ts.Label}
+	split := truncateToDay(splitDate)
+	for i, t := range ts.Times {
+		day := truncateToDay(t)
+		if day.Before(split) {
+			before.Times = append(before.Times, ts.Times[i])
+			before.Values = append(before.Values, ts.Values[i])
+		} else {
+			after.Times = append(after.Times, ts.Times[i])
+			after.Values = append(after.Values, ts.Values[i])
+		}
+	}
+	return before, after
+}
+
+// SplitAligned splits parallel aligned slices (rainfall, flow) at a given
+// day index, returning train and test portions for both.
+func SplitAligned(rain, flow []float64, splitIdx int) (rainTrain, flowTrain, rainTest, flowTest []float64) {
+	rainTrain = rain[:splitIdx]
+	flowTrain = flow[:splitIdx]
+	rainTest = rain[splitIdx:]
+	flowTest = flow[splitIdx:]
+	return
+}
+
+// DayIndex returns the index into an aligned daily series corresponding
+// to the given target date, where day 0 is alignStart.
+func DayIndex(alignStart, target time.Time) int {
+	s := truncateToDay(alignStart)
+	t := truncateToDay(target)
+	return int(t.Sub(s).Hours() / 24)
+}

@@ -95,6 +95,8 @@ The `pkg/hydrology` package provides an EA Hydrology API client and data ingesti
 - `SubCatchmentRainfall` — averages rainfall per sub-catchment group
 - `LoadRainfallStationMeta` — reads station metadata CSV (labels normalised to lowercase)
 - `NashSutcliffe`, `RMSE`, `PeakFlowBias`, `VolumeError` — validation metrics
+- `SplitTimeSeries` — splits a TimeSeries at a given date into before/after portions
+- `SplitAligned`, `DayIndex` — splits aligned daily slices at a day index; converts date to index
 
 Downloaded data lives in `dat/` (gitignored). Regenerate with `go run ./cmd/ingest/`.
 The `-data` flag overrides the output directory; `-from`/`-to` control the date range.
@@ -110,6 +112,8 @@ The `pkg/catchment` package contains the rainfall-runoff model and inference inf
 - `BuildSBI`, `SBIConfig`, `DefaultSBIConfig` — single-catchment simulation-based inference using the stochadex `analysis.NewPosteriorEstimationPartitions` builder
 - `BuildMultiCatchmentSBI`, `MultiSBIConfig` — multi-catchment SBI with N rainfall + N runoff + 1 routing inner partitions, routing coefficients fixed from calibration
 - `ModelParamsFromMap` — converts named params to vectorized `model_params` format
+- `ValidateHoldout` — calibrates on train split, evaluates on holdout split, returns `HoldoutResult` with metrics for both periods
+- `EvaluateFloodEvents` — detects flood events in observed flow above a threshold and compares simulated vs observed peaks per event
 
 **Important:** Always call `Configure()` on all iterations before creating `NewPartitionCoordinator`. The coordinator does NOT call Configure itself. Forgetting this causes nil-slice panics when iterations depend on config (e.g., `ChannelRoutingIteration.upstreamIndices`).
 
