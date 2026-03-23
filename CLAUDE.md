@@ -114,8 +114,21 @@ The `pkg/catchment` package contains the rainfall-runoff model and inference inf
 - `ModelParamsFromMap` — converts named params to vectorized `model_params` format
 - `ValidateHoldout` — calibrates on train split, evaluates on holdout split, returns `HoldoutResult` with metrics for both periods
 - `EvaluateFloodEvents` — detects flood events in observed flow above a threshold and compares simulated vs observed peaks per event
+- `StochasticRainfallIteration` — two-state Markov chain (wet/dry) with Gamma-distributed wet-day amounts. Params: `wet_day_shape`, `wet_day_scale`, `p_wet_given_dry`, `p_wet_given_wet`, `rainfall_multiplier` (climate change factor), `wet_threshold`. State: `[rainfall_mm]`. Requires seed ≠ 0 for RNG.
+- `FitGammaParams`, `FitWetDryTransitions` — fit rainfall generator parameters from observed daily data using method of moments
+- `RunStochasticModel` — runs rainfall-runoff driven by stochastic rainfall generator, returns `EnsembleResult` (flow, rainfall, peak, mean)
+- `RunEnsemble` — runs N stochastic realisations with different seeds, returns per-member results and `EnsembleSummary` (mean/std/max/P95 peak flows)
 
-**Important:** Always call `Configure()` on all iterations before creating `NewPartitionCoordinator`. The coordinator does NOT call Configure itself. Forgetting this causes nil-slice panics when iterations depend on config (e.g., `ChannelRoutingIteration.upstreamIndices`).
+**Important:** Always call `Configure(partitionIndex, settings)` on **every** iteration before creating `NewPartitionCoordinator`. The coordinator does NOT call Configure itself. Forgetting this causes nil-pointer panics for any iteration that initialises state in Configure (e.g., `StochasticRainfallIteration.rng`, `ChannelRoutingIteration.upstreamIndices`). Even no-op Configure implementations (like `FromStorageIteration`) should be called for consistency. Note that `simulator.RunWithHarnesses` calls Configure internally, so this only applies when using `NewPartitionCoordinator` directly.
+
+```go
+// Correct pattern:
+rainfallIter := &general.FromStorageIteration{Data: rainfallData}
+runoffIter := &RainfallRunoffIteration{}
+rainfallIter.Configure(0, settings)
+runoffIter.Configure(1, settings)
+// ... then NewPartitionCoordinator(settings, implementations)
+```
 
 ## Testing Conventions
 

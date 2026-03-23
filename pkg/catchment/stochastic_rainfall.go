@@ -1,0 +1,151 @@
+package catchment
+
+import (
+	"math"
+	"math/rand/v2"
+
+	"github.com/umbralcalc/stochadex/pkg/simulator"
+	"gonum.org/v1/gonum/stat/distuv"
+)
+
+// FitGammaParams estimates Gamma distribution parameters (shape, scale)
+// from observed wet-day rainfall amounts using method of moments.
+// Values at or below the wetThreshold are excluded.
+func FitGammaParams(rainfallValues []float64, wetThreshold float64) (shape, scale float64) {
+	var sum, sumSq float64
+	var n int
+	for _, v := range rainfallValues {
+		if v > wetThreshold {
+			sum += v
+			sumSq += v * v
+			n++
+		}
+	}
+	if n < 2 {
+		return 1.0, 5.0 // fallback
+	}
+	mean := sum / float64(n)
+	variance := sumSq/float64(n) - mean*mean
+	if variance <= 0 {
+		return 1.0, mean
+	}
+	shape = mean * mean / variance
+	scale = variance / mean
+	return
+}
+
+// FitWetDryTransitions estimates the Markov chain transition probabilities
+// for wet/dry day occurrence from observed daily rainfall.
+// Returns p01 (dry→wet) and p11 (wet→wet).
+func FitWetDryTransitions(rainfallValues []float64, wetThreshold float64) (p01, p11 float64) {
+	var dd, dw, wd, ww int
+	for i := 1; i < len(rainfallValues); i++ {
+		prevWet := rainfallValues[i-1] > wetThreshold
+		currWet := rainfallValues[i] > wetThreshold
+		switch {
+		case !prevWet && !currWet:
+			dd++
+		case !prevWet && currWet:
+			dw++
+		case prevWet && !currWet:
+			wd++
+		case prevWet && currWet:
+			ww++
+		}
+	}
+	if dd+dw > 0 {
+		p01 = float64(dw) / float64(dd+dw)
+	}
+	if wd+ww > 0 {
+		p11 = float64(ww) / float64(wd+ww)
+	}
+	return
+}
+
+// StochasticRainfallIteration generates synthetic daily rainfall using a
+// two-state Markov chain (wet/dry) with Gamma-distributed wet-day amounts.
+//
+// State vector: [rainfall_mm]
+//
+// Parameters:
+//   - wet_day_shape:       Gamma shape parameter for wet-day amounts
+//   - wet_day_scale:       Gamma scale parameter for wet-day amounts
+//   - p_wet_given_dry:     transition probability dry→wet (P01)
+//   - p_wet_given_wet:     transition probability wet→wet (P11)
+//   - rainfall_multiplier: multiplicative change factor (default 1.0)
+//                          for climate perturbation — scales wet-day amounts
+//   - wet_threshold:       threshold for wet/dry classification (mm, default 0.1)
+//
+// The rainfall_multiplier allows UKCP18 climate change factors to be
+// applied: e.g. 1.2 means 20% increase in wet-day rainfall intensity.
+// Transition probabilities can also be modified to represent changes in
+// wet-day frequency under climate change.
+type StochasticRainfallIteration struct {
+	rng      *rand.Rand
+	gammaDist distuv.Gamma
+}
+
+func (s *StochasticRainfallIteration) Configure(
+	partitionIndex int,
+	settings *simulator.Settings,
+) {
+	seed := settings.Iterations[partitionIndex].Seed
+	src := rand.NewPCG(seed, seed)
+	s.rng = rand.New(src)
+	// Gamma dist is configured per-step from params (in case params change).
+	s.gammaDist = distuv.Gamma{
+		Alpha: 1.0,
+		Beta:  1.0,
+		Src:   src,
+	}
+}
+
+func (s *StochasticRainfallIteration) Iterate(
+	params *simulator.Params,
+	partitionIndex int,
+	stateHistories []*simulator.StateHistory,
+	timestepsHistory *simulator.CumulativeTimestepsHistory,
+) []float64 {
+	shape := params.Map["wet_day_shape"][0]
+	scale := params.Map["wet_day_scale"][0]
+	p01 := params.Map["p_wet_given_dry"][0]
+	p11 := params.Map["p_wet_given_wet"][0]
+
+	multiplier := 1.0
+	if m, ok := params.GetOk("rainfall_multiplier"); ok {
+		multiplier = m[0]
+	}
+
+	threshold := 0.1
+	if th, ok := params.GetOk("wet_threshold"); ok {
+		threshold = th[0]
+	}
+
+	// Determine if previous day was wet.
+	prevRainfall := stateHistories[partitionIndex].Values.At(0, 0)
+	prevWet := prevRainfall > threshold
+
+	// Markov transition: sample wet/dry for today.
+	pWet := p01
+	if prevWet {
+		pWet = p11
+	}
+
+	todayWet := s.rng.Float64() < pWet
+
+	if !todayWet {
+		return []float64{0.0}
+	}
+
+	// Sample wet-day amount from Gamma distribution.
+	s.gammaDist.Alpha = math.Max(shape, 0.01)
+	s.gammaDist.Beta = 1.0 / math.Max(scale, 0.01) // gonum uses rate (1/scale)
+	amount := s.gammaDist.Rand() * multiplier
+
+	// Floor at threshold to ensure consistency.
+	if amount < threshold {
+		amount = threshold
+	}
+
+	return []float64{amount}
+}

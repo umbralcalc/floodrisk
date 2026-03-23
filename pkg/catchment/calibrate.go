@@ -86,6 +86,8 @@ func RunModel(rainfallData [][]float64, params map[string][]float64, nSteps int)
 
 	rainfallIter := &general.FromStorageIteration{Data: rainfallData}
 	runoffIter := &RainfallRunoffIteration{}
+	rainfallIter.Configure(0, settings)
+	runoffIter.Configure(1, settings)
 
 	store := simulator.NewStateTimeStorage()
 	implementations := &simulator.Implementations{

@@ -6,7 +6,7 @@
 
 ## Current Status
 
-Phases 1–3 are complete for the **Upper Calder Valley** catchment in Yorkshire.
+Phases 1–4 are complete for the **Upper Calder Valley** catchment in Yorkshire, plus the stochastic rainfall generator and ensemble simulation framework.
 
 ### Phase 1: Data Acquisition (complete)
 
@@ -39,6 +39,14 @@ Phases 1–3 are complete for the **Upper Calder Valley** catchment in Yorkshire
 - **Channel routing** via linear reservoir model: `routed_i(t) = K_i * upstream_i(t) + (1-K_i) * routed_i(t-1)` with per-sub-catchment routing coefficients
 - **Multi-catchment calibration** (`cmd/calibrate/ -multi`): NSE ≈ 0.23 with shared PDM parameters across sub-catchments — below single-catchment baseline (0.34), likely due to uneven rainfall station distribution and shared parameter constraint
 - **Multi-catchment SBI** (`cmd/sbi/ -multi`): posterior estimation with N rainfall + N runoff + 1 routing inner partitions, routing coefficients fixed from calibration
+
+### Stochastic Rainfall Generator & Ensemble Simulation (complete)
+
+- **Two-state Markov chain rainfall generator** (`StochasticRainfallIteration`): wet/dry day transitions (P01=0.40, P11=0.83) with Gamma-distributed wet-day amounts (shape=0.61, scale=7.94 mm), fitted from 16 years of catchment-average observations
+- **Climate perturbation** via `rainfall_multiplier` parameter — scales wet-day intensity to represent UKCP18 change factors (e.g. 1.2 = 20% increase)
+- **Ensemble simulation** (`RunEnsemble`): runs N stochastic realisations with different seeds, producing peak flow distributions — baseline mean peak ≈ 44 m³/s, P95 ≈ 49 m³/s
+- **Climate impact quantified**: 20% rainfall intensity increase → 30% increase in mean peak flows (44 → 57 m³/s), demonstrating nonlinear amplification through the catchment system
+- **Distribution fitting** (`FitGammaParams`, `FitWetDryTransitions`): automatically fits rainfall generator parameters from observed data
 
 ### Project Structure
 
@@ -392,7 +400,7 @@ Once the core single-catchment model is validated:
 
 - [x] Implement a lumped rainfall-runoff simulation for one sub-catchment in the stochadex
 - [x] Define state transitions: rainfall → soil moisture → runoff → channel flow → flood state
-- [ ] Implement a simple stochastic rainfall generator (fitted to observed event statistics)
+- [x] Implement a simple stochastic rainfall generator (fitted to observed event statistics)
 - [x] Verify the simulation produces qualitatively sensible hydrographs with hand-tuned parameters
 
 ### Week 5–6: Simulation-based inference

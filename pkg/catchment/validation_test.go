@@ -56,6 +56,8 @@ func TestRainfallRunoffValidation(t *testing.T) {
 
 			rainfallIter := &general.FromStorageIteration{Data: rainfallData}
 			runoffIter := &RainfallRunoffIteration{}
+			rainfallIter.Configure(0, settings)
+			runoffIter.Configure(1, settings)
 
 			store := simulator.NewStateTimeStorage()
 			implementations := &simulator.Implementations{

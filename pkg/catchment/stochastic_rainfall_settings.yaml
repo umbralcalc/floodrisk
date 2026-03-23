@@ -1,0 +1,15 @@
+iterations:
+- name: stochastic_rainfall
+  params:
+    wet_day_shape: [0.609]
+    wet_day_scale: [7.944]
+    p_wet_given_dry: [0.52]
+    p_wet_given_wet: [0.82]
+    rainfall_multiplier: [1.0]
+    wet_threshold: [0.1]
+  init_state_values: [0.0]
+  seed: 12345
+  state_width: 1
+  state_history_depth: 2
+init_time_value: 0.0
+timesteps_history_depth: 2
