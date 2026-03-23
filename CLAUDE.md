@@ -121,7 +121,7 @@ The `pkg/catchment` package contains the rainfall-runoff model and inference inf
 - `RunEnsemble` — runs N stochastic realisations with different seeds, returns per-member results and `EnsembleSummary` (mean/std/max/P95 peak flows)
 - `InterventionType` — enum: `LeakyDams`, `WoodlandPlanting`, `FloodplainReconnection`, `PeatRestoration`
 - `Intervention`, `Portfolio` — NFM intervention placement (type, sub-catchment, scale) and named portfolio of interventions with cost
-- `InterventionPriors`, `DefaultInterventionPriors` — WWNP evidence-based prior ranges for each intervention's effectiveness
+- `InterventionPriors`, `DefaultInterventionPriors` — WWNP evidence-based prior ranges for each intervention's effectiveness (linear-with-cap model: Scale/FullScale × sampled max reduction)
 - `SampleEffectiveness` — draws random effectiveness for one intervention from priors
 - `ApplyPortfolio` — applies a portfolio's sampled effects to model params and routing coefficients (returns copies, does not mutate)
 - `ClimateScenario`, `StandardClimateScenarios` — UKCP18 rainfall multipliers: baseline, RCP4.5/RCP8.5 at 2040/2070

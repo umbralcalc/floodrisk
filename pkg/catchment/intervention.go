@@ -59,12 +59,20 @@ type InterventionEffectiveness struct {
 
 // InterventionPriors defines the prior distribution parameters for each
 // intervention type's effectiveness, based on WWNP evidence.
+//
+// Routing reductions use a linear-with-cap model: the total reduction
+// in a sub-catchment is Scale/FullScale * sampled_max_reduction, capped
+// at the sampled maximum. This avoids unrealistic compound effects from
+// multiplicative per-unit application.
 type InterventionPriors struct {
-	// LeakyDams: per cluster of ~10 dams in a tributary.
-	// Evidence: ~10% peak reduction for ≤1yr return period events (WWNP).
-	// Effect: reduces routing coefficient by 5–15% per cluster.
-	LeakyDamRoutingReductionMin float64 // min fraction reduction per cluster
-	LeakyDamRoutingReductionMax float64 // max fraction reduction per cluster
+	// LeakyDams: total effect for a fully-deployed scheme in one sub-catchment.
+	// Evidence: ~10% peak reduction for ≤1yr return period events (WWNP),
+	// declining for larger events. A "full deployment" is ~20 clusters.
+	// Scale represents number of clusters; FullScale is the reference
+	// deployment size at which the max reduction is achieved.
+	LeakyDamRoutingReductionMin float64 // min total fraction reduction at full scale
+	LeakyDamRoutingReductionMax float64 // max total fraction reduction at full scale
+	LeakyDamFullScale           float64 // number of clusters for full effect
 
 	// Woodland: per 10 hectares planted.
 	// Evidence: infiltration 2–60x increase (Pontbren), interception
@@ -75,11 +83,12 @@ type InterventionPriors struct {
 	WoodlandETRateMin        float64 // min mm/day increase per 10ha
 	WoodlandETRateMax        float64 // max mm/day increase per 10ha
 
-	// Floodplain reconnection: per site.
+	// Floodplain reconnection: total effect per site.
 	// Evidence: site-specific storage volumes (EA evidence).
 	// Effect: reduces routing coefficient (off-channel storage delays flow).
-	FloodplainRoutingReductionMin float64
-	FloodplainRoutingReductionMax float64
+	FloodplainRoutingReductionMin float64 // min reduction per site
+	FloodplainRoutingReductionMax float64 // max reduction per site
+	FloodplainMaxSites            float64 // max sites before diminishing returns
 
 	// Peat restoration: per 10 hectares restored.
 	// Evidence: 5–20cm water table depth change from rewetting studies.
@@ -91,9 +100,11 @@ type InterventionPriors struct {
 // DefaultInterventionPriors returns evidence-based prior ranges from WWNP.
 func DefaultInterventionPriors() InterventionPriors {
 	return InterventionPriors{
-		// Leaky dams: 5–15% routing reduction per cluster.
+		// Leaky dams: 5–15% total routing reduction at full deployment
+		// (~20 clusters). Fewer clusters give proportionally less effect.
 		LeakyDamRoutingReductionMin: 0.05,
 		LeakyDamRoutingReductionMax: 0.15,
+		LeakyDamFullScale:           20.0,
 
 		// Woodland: per 10ha — moderate field capacity and ET increase.
 		WoodlandFieldCapacityMin: 5.0,  // mm
@@ -101,9 +112,11 @@ func DefaultInterventionPriors() InterventionPriors {
 		WoodlandETRateMin:        0.1,  // mm/day
 		WoodlandETRateMax:        0.5,  // mm/day
 
-		// Floodplain reconnection: 10–25% routing reduction per site.
-		FloodplainRoutingReductionMin: 0.10,
-		FloodplainRoutingReductionMax: 0.25,
+		// Floodplain reconnection: 5–15% routing reduction per site,
+		// up to 3 sites before diminishing returns.
+		FloodplainRoutingReductionMin: 0.05,
+		FloodplainRoutingReductionMax: 0.15,
+		FloodplainMaxSites:            3.0,
 
 		// Peat restoration: per 10ha — increases headwater storage.
 		PeatFieldCapacityMin: 10.0, // mm
@@ -129,17 +142,17 @@ func SampleEffectiveness(
 
 	switch intervention.Type {
 	case LeakyDams:
-		// Per-cluster routing reduction, applied multiplicatively.
-		perCluster := uniform(
+		// Linear scaling: fraction of full deployment determines fraction
+		// of max effect. Capped at the sampled maximum.
+		maxReduction := uniform(
 			priors.LeakyDamRoutingReductionMin,
 			priors.LeakyDamRoutingReductionMax,
 		)
-		// Multiple clusters: (1 - reduction)^n_clusters.
-		reduction := 1.0
-		for i := 0; i < int(intervention.Scale); i++ {
-			reduction *= (1.0 - perCluster)
+		fraction := intervention.Scale / priors.LeakyDamFullScale
+		if fraction > 1.0 {
+			fraction = 1.0
 		}
-		eff.RoutingCoefficientReduction = reduction
+		eff.RoutingCoefficientReduction = 1.0 - maxReduction*fraction
 
 	case WoodlandPlanting:
 		// Scale is in units of 10ha.
@@ -154,16 +167,16 @@ func SampleEffectiveness(
 		) * units
 
 	case FloodplainReconnection:
-		// Per-site routing reduction.
-		perSite := uniform(
+		// Linear scaling with diminishing returns past max sites.
+		maxReduction := uniform(
 			priors.FloodplainRoutingReductionMin,
 			priors.FloodplainRoutingReductionMax,
 		)
-		reduction := 1.0
-		for i := 0; i < int(intervention.Scale); i++ {
-			reduction *= (1.0 - perSite)
+		fraction := intervention.Scale / priors.FloodplainMaxSites
+		if fraction > 1.0 {
+			fraction = 1.0
 		}
-		eff.RoutingCoefficientReduction = reduction
+		eff.RoutingCoefficientReduction = 1.0 - maxReduction*fraction
 
 	case PeatRestoration:
 		// Scale is in units of 10ha.

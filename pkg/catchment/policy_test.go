@@ -62,7 +62,7 @@ func TestEvaluatePolicy(t *testing.T) {
 				WetThreshold:       0.1,
 			},
 			RoutingCoeffs: []float64{0.8, 0.9, 0.7, 0.85},
-			SubCatchments: []string{"Ryburn", "Colne", "Upper Calder", "Holme"},
+			SubCatchments: []string{"ryburn", "colne", "upper_calder", "holme"},
 			NSteps:        365,
 			NMembers:      5,
 			SpinUp:        30,
@@ -75,7 +75,7 @@ func TestEvaluatePolicy(t *testing.T) {
 			{
 				Name: "leaky_dams",
 				Interventions: []Intervention{
-					{Type: LeakyDams, SubCatchment: "Ryburn", Scale: 5},
+					{Type: LeakyDams, SubCatchment: "ryburn", Scale: 5},
 				},
 			},
 		}

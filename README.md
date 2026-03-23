@@ -50,15 +50,20 @@ Phases 1–4 are complete for the **Upper Calder Valley** catchment in Yorkshire
 
 ### NFM Interventions & Policy Evaluation (complete)
 
-- **4 NFM intervention types** with uncertain effectiveness priors from WWNP evidence:
-  - **Leaky dams**: 5–15% routing coefficient reduction per cluster (peak flow attenuation)
+- **4 NFM intervention types** with uncertain effectiveness priors from WWNP evidence (linear-with-cap model to avoid unrealistic compound effects):
+  - **Leaky dams**: 5–15% total routing reduction at full deployment (~20 clusters per sub-catchment)
   - **Woodland planting**: +5–30 mm field capacity and +0.1–0.5 mm/day ET per 10 ha (interception/infiltration)
-  - **Floodplain reconnection**: 10–25% routing reduction per site (off-channel storage)
+  - **Floodplain reconnection**: 5–15% routing reduction per site (off-channel storage), up to 3 sites
   - **Peat restoration**: +10–40 mm field capacity per 10 ha (headwater storage)
 - **4 candidate portfolios** at different budget levels: no intervention, leaky dams only (£500k), woodland focus (£1M), mixed portfolio (£2M)
 - **5 UKCP18 climate scenarios**: baseline, RCP4.5 at 2040/2070 (+10%/+20% rainfall), RCP8.5 at 2040/2070 (+15%/+35% rainfall)
 - **Policy evaluation framework** (`cmd/evaluate/`): runs ensemble simulations for every portfolio × climate scenario combination, reporting peak flow distributions and reduction percentages
 - **Uncertainty propagation**: intervention effectiveness re-sampled per ensemble member, capturing both climate and NFM effectiveness uncertainty
+- **Key findings** (50-member ensemble, 10-year simulations):
+  - Woodland planting is the most cost-effective intervention: **12.8% peak reduction** at baseline for £1M, vs 4.9% for £500k of leaky dams
+  - NFM effectiveness **declines under extreme climate scenarios**: woodland goes from 12.8% (baseline) to 10.2% (RCP8.5 2070) — interventions can't fully offset intensifying rainfall
+  - Even the best NFM portfolio **cannot prevent climate-driven increases**: baseline peak 45 m³/s rises to 63 m³/s under RCP8.5 2070 even with woodland (+38% vs no-intervention baseline)
+  - The mixed £2M portfolio (10.5–11.3% reduction) underperforms the £1M woodland focus — more isn't always better; intervention mix and placement matter
 
 ### Project Structure
 

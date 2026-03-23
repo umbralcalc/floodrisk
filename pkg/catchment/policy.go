@@ -38,30 +38,30 @@ func CandidatePortfolios() []Portfolio {
 			Name:    "leaky_dams_only",
 			CostGBP: 500_000,
 			Interventions: []Intervention{
-				{Type: LeakyDams, SubCatchment: "Ryburn", Scale: 10},
-				{Type: LeakyDams, SubCatchment: "Upper Calder", Scale: 15},
-				{Type: LeakyDams, SubCatchment: "Colne", Scale: 15},
+				{Type: LeakyDams, SubCatchment: "ryburn", Scale: 10},
+				{Type: LeakyDams, SubCatchment: "upper_calder", Scale: 15},
+				{Type: LeakyDams, SubCatchment: "colne", Scale: 15},
 			},
 		},
 		{
 			Name:    "woodland_focus",
 			CostGBP: 1_000_000,
 			Interventions: []Intervention{
-				{Type: WoodlandPlanting, SubCatchment: "Ryburn", Scale: 30},       // 30 ha
-				{Type: WoodlandPlanting, SubCatchment: "Upper Calder", Scale: 50}, // 50 ha
-				{Type: WoodlandPlanting, SubCatchment: "Colne", Scale: 40},        // 40 ha
+				{Type: WoodlandPlanting, SubCatchment: "ryburn", Scale: 30},       // 30 ha
+				{Type: WoodlandPlanting, SubCatchment: "upper_calder", Scale: 50}, // 50 ha
+				{Type: WoodlandPlanting, SubCatchment: "colne", Scale: 40},        // 40 ha
 			},
 		},
 		{
 			Name:    "mixed_portfolio",
 			CostGBP: 2_000_000,
 			Interventions: []Intervention{
-				{Type: LeakyDams, SubCatchment: "Ryburn", Scale: 10},
-				{Type: LeakyDams, SubCatchment: "Upper Calder", Scale: 10},
-				{Type: WoodlandPlanting, SubCatchment: "Ryburn", Scale: 20},
-				{Type: WoodlandPlanting, SubCatchment: "Colne", Scale: 30},
-				{Type: FloodplainReconnection, SubCatchment: "Colne", Scale: 2},
-				{Type: PeatRestoration, SubCatchment: "Upper Calder", Scale: 30},
+				{Type: LeakyDams, SubCatchment: "ryburn", Scale: 10},
+				{Type: LeakyDams, SubCatchment: "upper_calder", Scale: 10},
+				{Type: WoodlandPlanting, SubCatchment: "ryburn", Scale: 20},
+				{Type: WoodlandPlanting, SubCatchment: "colne", Scale: 30},
+				{Type: FloodplainReconnection, SubCatchment: "colne", Scale: 2},
+				{Type: PeatRestoration, SubCatchment: "upper_calder", Scale: 30},
 			},
 		},
 	}
