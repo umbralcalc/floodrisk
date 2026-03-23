@@ -6,7 +6,7 @@
 
 ## Current Status
 
-Phases 1–4 are complete for the **Upper Calder Valley** catchment in Yorkshire, plus the stochastic rainfall generator and ensemble simulation framework.
+Phases 1–4 are complete for the **Upper Calder Valley** catchment in Yorkshire, plus the stochastic rainfall generator, ensemble simulation framework, and NFM policy evaluation.
 
 ### Phase 1: Data Acquisition (complete)
 
@@ -48,6 +48,18 @@ Phases 1–4 are complete for the **Upper Calder Valley** catchment in Yorkshire
 - **Climate impact quantified**: 20% rainfall intensity increase → 30% increase in mean peak flows (44 → 57 m³/s), demonstrating nonlinear amplification through the catchment system
 - **Distribution fitting** (`FitGammaParams`, `FitWetDryTransitions`): automatically fits rainfall generator parameters from observed data
 
+### NFM Interventions & Policy Evaluation (complete)
+
+- **4 NFM intervention types** with uncertain effectiveness priors from WWNP evidence:
+  - **Leaky dams**: 5–15% routing coefficient reduction per cluster (peak flow attenuation)
+  - **Woodland planting**: +5–30 mm field capacity and +0.1–0.5 mm/day ET per 10 ha (interception/infiltration)
+  - **Floodplain reconnection**: 10–25% routing reduction per site (off-channel storage)
+  - **Peat restoration**: +10–40 mm field capacity per 10 ha (headwater storage)
+- **4 candidate portfolios** at different budget levels: no intervention, leaky dams only (£500k), woodland focus (£1M), mixed portfolio (£2M)
+- **5 UKCP18 climate scenarios**: baseline, RCP4.5 at 2040/2070 (+10%/+20% rainfall), RCP8.5 at 2040/2070 (+15%/+35% rainfall)
+- **Policy evaluation framework** (`cmd/evaluate/`): runs ensemble simulations for every portfolio × climate scenario combination, reporting peak flow distributions and reduction percentages
+- **Uncertainty propagation**: intervention effectiveness re-sampled per ensemble member, capturing both climate and NFM effectiveness uncertainty
+
 ### Project Structure
 
 ```
@@ -55,8 +67,9 @@ cmd/ingest/       CLI to download EA Hydrology, Rainfall, and Flood area data
 cmd/analyse/      CLI to run exploratory analysis on downloaded data
 cmd/calibrate/    CLI for random-search model calibration
 cmd/sbi/          CLI for simulation-based inference (posterior estimation)
+cmd/evaluate/     CLI for NFM policy evaluation across climate scenarios
 pkg/hydrology/    EA API client, catchment config, data ingestion, alignment, and metrics
-pkg/catchment/    Rainfall-runoff model, calibration, and SBI builder
+pkg/catchment/    Rainfall-runoff model, calibration, SBI builder, interventions, and policy evaluation
 cfg/              Stochadex YAML simulation configs
 dat/              Downloaded CSV data (gitignored, regenerable via cmd/ingest)
 ```
@@ -72,6 +85,7 @@ go run ./cmd/calibrate/               # single-catchment calibration
 go run ./cmd/calibrate/ -multi        # multi-sub-catchment calibration
 go run ./cmd/sbi/                     # single-catchment SBI
 go run ./cmd/sbi/ -multi              # multi-sub-catchment SBI
+go run ./cmd/evaluate/                # NFM policy evaluation across climate scenarios
 ```
 
 ---
@@ -412,10 +426,10 @@ Once the core single-catchment model is validated:
 
 ### Week 7–8: NFM interventions and decision science
 
-- [ ] Add NFM intervention parameter modifiers (leaky dams, woodland) with uncertain effectiveness priors from WWNP evidence
-- [ ] Implement 3–4 candidate intervention portfolios as action sets
-- [ ] Perturb rainfall with UKCP18 change factors for 2040 and 2070 scenarios
-- [ ] Run policy evaluation: simulate ensembles under each portfolio × climate scenario
+- [x] Add NFM intervention parameter modifiers (leaky dams, woodland, floodplain reconnection, peat restoration) with uncertain effectiveness priors from WWNP evidence
+- [x] Implement 3–4 candidate intervention portfolios as action sets
+- [x] Perturb rainfall with UKCP18 change factors for 2040 and 2070 scenarios
+- [x] Run policy evaluation: simulate ensembles under each portfolio × climate scenario
 - [ ] Produce initial findings and visualisations
 
 ---

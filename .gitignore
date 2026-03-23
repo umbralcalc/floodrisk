@@ -1,2 +1,5 @@
 sbi
 !cmd/sbi/
+
+evaluate
+!cmd/evaluate/

@@ -76,6 +76,7 @@ go run ./cmd/ingest/                              # download EA data → dat/
 go run ./cmd/analyse/                             # exploratory analysis on dat/
 go run ./cmd/calibrate/                           # calibrate model params
 go run ./cmd/sbi/                                 # run simulation-based inference
+go run ./cmd/evaluate/                            # NFM policy evaluation
 ```
 
 ## Data Ingestion (pkg/hydrology)
@@ -118,6 +119,15 @@ The `pkg/catchment` package contains the rainfall-runoff model and inference inf
 - `FitGammaParams`, `FitWetDryTransitions` — fit rainfall generator parameters from observed daily data using method of moments
 - `RunStochasticModel` — runs rainfall-runoff driven by stochastic rainfall generator, returns `EnsembleResult` (flow, rainfall, peak, mean)
 - `RunEnsemble` — runs N stochastic realisations with different seeds, returns per-member results and `EnsembleSummary` (mean/std/max/P95 peak flows)
+- `InterventionType` — enum: `LeakyDams`, `WoodlandPlanting`, `FloodplainReconnection`, `PeatRestoration`
+- `Intervention`, `Portfolio` — NFM intervention placement (type, sub-catchment, scale) and named portfolio of interventions with cost
+- `InterventionPriors`, `DefaultInterventionPriors` — WWNP evidence-based prior ranges for each intervention's effectiveness
+- `SampleEffectiveness` — draws random effectiveness for one intervention from priors
+- `ApplyPortfolio` — applies a portfolio's sampled effects to model params and routing coefficients (returns copies, does not mutate)
+- `ClimateScenario`, `StandardClimateScenarios` — UKCP18 rainfall multipliers: baseline, RCP4.5/RCP8.5 at 2040/2070
+- `CandidatePortfolios` — 4 example portfolios: no intervention, leaky dams only, woodland focus, mixed
+- `EvaluatePolicy`, `PolicyEvaluationConfig`, `PolicyResult` — runs ensemble simulations for every portfolio × climate scenario combination
+- `RunEnsembleWithInterventions` — ensemble with per-member NFM effectiveness sampling and routing attenuation
 
 **Important:** Always call `Configure(partitionIndex, settings)` on **every** iteration before creating `NewPartitionCoordinator`. The coordinator does NOT call Configure itself. Forgetting this causes nil-pointer panics for any iteration that initialises state in Configure (e.g., `StochasticRainfallIteration.rng`, `ChannelRoutingIteration.upstreamIndices`). Even no-op Configure implementations (like `FromStorageIteration`) should be called for consistency. Note that `simulator.RunWithHarnesses` calls Configure internally, so this only applies when using `NewPartitionCoordinator` directly.
 
