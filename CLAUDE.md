@@ -75,6 +75,7 @@ go run github.com/umbralcalc/stochadex/cmd/stochadex --config cfg/rainfall_runof
 go run ./cmd/ingest/                              # download EA data → dat/
 go run ./cmd/analyse/                             # exploratory analysis on dat/
 go run ./cmd/calibrate/                           # calibrate model params
+go run ./cmd/sbi/                                 # run simulation-based inference
 ```
 
 ## Data Ingestion (pkg/hydrology)
@@ -86,9 +87,21 @@ The `pkg/hydrology` package provides an EA Hydrology API client and data ingesti
 - `CatchmentConfig` / `UpperCalderValley()` — defines the target catchment and its stations
 - `FetchFloodAreas` — fetches EA flood alert/warning areas
 - `LoadTimeSeries`, `Summary`, `DetectFloodEvents`, `AnnualMaxima` — analysis utilities
+- `AverageCatchmentRainfall` — averages multiple rainfall stations into a single daily series
+- `AlignDaily` — intersects rainfall and flow time series to common date range
+- `NashSutcliffe`, `RMSE`, `PeakFlowBias`, `VolumeError` — validation metrics
 
 Downloaded data lives in `dat/` (gitignored). Regenerate with `go run ./cmd/ingest/`.
 The `-data` flag overrides the output directory; `-from`/`-to` control the date range.
+
+## Catchment Modelling (pkg/catchment)
+
+The `pkg/catchment` package contains the rainfall-runoff model and inference infrastructure:
+
+- `RainfallRunoffIteration` — lumped PDM-style rainfall-runoff model with parallel fast/slow flow stores. State vector: `[soil_moisture_mm, total_flow_m3s, fast_flow_m3s, slow_flow_m3s]`. Supports named params or vectorized `model_params` (for SBI wiring).
+- `Calibrate`, `RunModel`, `SampleParams` — random-search calibration over 7 model parameters
+- `BuildSBI`, `SBIConfig`, `DefaultSBIConfig` — simulation-based inference using the `analysis.NewPosteriorEstimationPartitions` builder from the stochadex analysis package. Uses windowed embedded simulations with `DataGenerationIteration`, `DataComparisonIteration`, and posterior aggregation iterations.
+- `ModelParamsFromMap` — converts named params to vectorized `model_params` format
 
 ## Testing Conventions
 

@@ -6,7 +6,9 @@
 
 ## Current Status
 
-Phase 1 (data acquisition and exploration) is complete for the **Upper Calder Valley** catchment in Yorkshire. The project has:
+Phases 1–3 are complete for the **Upper Calder Valley** catchment in Yorkshire.
+
+### Phase 1: Data Acquisition (complete)
 
 - **7 flow gauging stations** ingested (River Calder at Elland and Dewsbury, plus tributaries Ryburn, Colne, Holme, and Spen Beck)
 - **24 rainfall stations** within 15 km of the catchment centre
@@ -14,13 +16,29 @@ Phase 1 (data acquisition and exploration) is complete for the **Upper Calder Va
 - **16 years of daily data** (2010–2025) for all stations
 - Exploratory analysis confirming the Boxing Day 2015 flood as the largest event (189.66 m³/s at Elland, ~17-year return period)
 
+### Phase 2: Model Structure (complete)
+
+- **PDM-style lumped rainfall-runoff model** (`RainfallRunoffIteration`) with nonlinear runoff generation and parallel fast/slow flow stores
+- State vector: `[soil_moisture_mm, total_flow_m3s, fast_flow_m3s, slow_flow_m3s]`
+- 7 calibration parameters: field capacity, drainage rate, ET rate, runoff shape (PDM exponent), fast/slow recession rates, catchment area
+- Data alignment pipeline averaging 24 rainfall stations to daily catchment mean, aligned with Elland flow gauge
+- Validation metrics: Nash-Sutcliffe Efficiency, RMSE, peak flow bias, volume error
+
+### Phase 3: Learning from Data (complete)
+
+- **Random-search calibration** (`cmd/calibrate/`): best NSE ≈ 0.34, volume error near zero, peak bias ≈ −0.68
+- **Simulation-based inference** (`cmd/sbi/`): posterior estimation using the stochadex `analysis.NewPosteriorEstimationPartitions` builder — windowed embedded simulations with Normal likelihood comparison, online posterior mean and covariance tracking, and past-discounting
+- Prior centered on calibration best result with wide diagonal covariance
+
 ### Project Structure
 
 ```
 cmd/ingest/       CLI to download EA Hydrology, Rainfall, and Flood area data
 cmd/analyse/      CLI to run exploratory analysis on downloaded data
-pkg/hydrology/    EA API client, catchment config, data ingestion, and analysis
-pkg/catchment/    Catchment simulation iterations (rainfall-runoff model)
+cmd/calibrate/    CLI for random-search model calibration
+cmd/sbi/          CLI for simulation-based inference (posterior estimation)
+pkg/hydrology/    EA API client, catchment config, data ingestion, alignment, and metrics
+pkg/catchment/    Rainfall-runoff model, calibration, and SBI builder
 cfg/              Stochadex YAML simulation configs
 dat/              Downloaded CSV data (gitignored, regenerable via cmd/ingest)
 ```
@@ -32,6 +50,8 @@ go build ./...                        # compile
 go test -count=1 ./...                # run all tests
 go run ./cmd/ingest/                  # download data from EA APIs → dat/
 go run ./cmd/analyse/                 # run exploratory analysis on dat/
+go run ./cmd/calibrate/               # random-search calibration
+go run ./cmd/sbi/                     # simulation-based inference
 ```
 
 ---
@@ -358,15 +378,15 @@ Once the core single-catchment model is validated:
 
 ### Week 3–4: Minimal stochadex simulation
 
-- [ ] Implement a lumped rainfall-runoff simulation for one sub-catchment in the stochadex
-- [ ] Define state transitions: rainfall → soil moisture → runoff → channel flow → flood state
+- [x] Implement a lumped rainfall-runoff simulation for one sub-catchment in the stochadex
+- [x] Define state transitions: rainfall → soil moisture → runoff → channel flow → flood state
 - [ ] Implement a simple stochastic rainfall generator (fitted to observed event statistics)
-- [ ] Verify the simulation produces qualitatively sensible hydrographs with hand-tuned parameters
+- [x] Verify the simulation produces qualitatively sensible hydrographs with hand-tuned parameters
 
 ### Week 5–6: Simulation-based inference
 
-- [ ] Smooth and aggregate observed rainfall-flow pairs into baseline response functions
-- [ ] Set up SBI to learn runoff and routing parameters from observed data
+- [x] Smooth and aggregate observed rainfall-flow pairs into baseline response functions
+- [x] Set up SBI to learn runoff and routing parameters from observed data
 - [ ] Validate: does the fitted model reproduce held-out flood events?
 - [ ] Extend to multiple sub-catchments with channel routing between them
 
