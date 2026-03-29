@@ -32,7 +32,7 @@ All data is freely available from Environment Agency open APIs under the Open Go
 - **109 flood alert/warning areas** covering the catchment
 - **16 years of daily data** (2010–2025)
 
-Exploratory analysis confirms the Boxing Day 2015 flood as the largest event in the record (189.66 m³/s at Elland, ~17-year empirical return period).
+Exploratory analysis confirms the Boxing Day 2015 flood as the largest event in the record (189.66 m³/s at Elland, ~17-year empirical return period on annual maxima).
 
 Data is downloaded and stored locally in `dat/` (gitignored). Regenerate with:
 
@@ -93,10 +93,10 @@ Random-search calibration (5000 trials) against observed daily flow at Elland:
 | Metric | Value |
 |--------|-------|
 | Nash-Sutcliffe Efficiency | 0.34 |
-| Volume error | ~0 |
+| Volume error | ~0.02 |
 | Peak flow bias | -0.68 |
 
-Best-fit parameters: FC=332 mm, drainage rate=0.029, ET=1.12 mm/day, runoff shape=2.67, fast recession=0.40, slow recession=0.32, area=297 km².
+Best-fit parameters: FC=298 mm, drainage rate=0.0265, ET=0.86 mm/day, runoff shape=2.21, fast recession=0.35, slow recession=0.44, area=282 km².
 
 ### Temporal Holdout
 
@@ -111,11 +111,11 @@ The small drop confirms the model generalises without significant overfitting.
 
 ### Flood Event Reproduction
 
-150 flood events detected above the P95 threshold (30.7 m³/s). The model correctly identifies the Boxing Day 2015 flood as the largest event (observed 189.66 m³/s, simulated 59.22 m³/s). Mean absolute peak bias across all events is 0.60 — the lumped PDM consistently underestimates extreme peaks, a known limitation of this model class.
+150 flood events detected above the P95 threshold (≈30.7 m³/s). The model correctly identifies the Boxing Day 2015 flood as the largest event (observed 189.66 m³/s, simulated 59.22 m³/s). Mean absolute peak bias across all events is 0.60 — the lumped PDM consistently underestimates extreme peaks, a known limitation of this model class.
 
 ### Multi-Catchment
 
-Multi-sub-catchment calibration with shared PDM parameters achieves NSE ≈ 0.23, below the single-catchment baseline. This is expected given the uneven rainfall station distribution across sub-catchments and the shared parameter constraint.
+Multi-sub-catchment calibration with shared PDM parameters achieves NSE ≈ 0.23 (5000 trials), below the single-catchment baseline. This is expected given the uneven rainfall station distribution across sub-catchments and the shared parameter constraint.
 
 ### Simulation-Based Inference
 
@@ -174,37 +174,37 @@ UKCP18-informed rainfall intensity multipliers:
 
 | Portfolio | Scenario | Mean Peak | Std Peak | P95 Peak | Max Peak |
 |-----------|----------|----------|---------|---------|---------|
-| no_intervention | baseline | 45.44 | 6.96 | 58.04 | 61.99 |
-| no_intervention | RCP4.5_2040 | 52.06 | 7.90 | 66.71 | 71.40 |
-| no_intervention | RCP4.5_2070 | 58.73 | 8.72 | 76.12 | 81.04 |
-| no_intervention | RCP8.5_2040 | 55.55 | 8.35 | 71.38 | 76.20 |
-| no_intervention | RCP8.5_2070 | 69.62 | 10.32 | 90.66 | 95.86 |
-| leaky_dams_only | baseline | 43.23 | 6.58 | 55.87 | 58.83 |
-| leaky_dams_only | RCP8.5_2070 | 66.23 | 9.77 | 84.88 | 90.97 |
-| woodland_focus | baseline | 39.63 | 6.26 | 49.71 | 56.86 |
-| woodland_focus | RCP8.5_2070 | 62.53 | 9.49 | 80.87 | 89.47 |
-| mixed_portfolio | baseline | 40.32 | 6.32 | 51.77 | 54.67 |
-| mixed_portfolio | RCP8.5_2070 | 62.68 | 9.46 | 80.49 | 85.98 |
+| no_intervention | baseline | 41.58 | 6.06 | 52.96 | 55.92 |
+| no_intervention | RCP4.5_2040 | 47.43 | 6.88 | 60.08 | 64.09 |
+| no_intervention | RCP4.5_2070 | 53.31 | 7.62 | 68.56 | 72.44 |
+| no_intervention | RCP8.5_2040 | 50.51 | 7.27 | 64.15 | 68.24 |
+| no_intervention | RCP8.5_2070 | 62.88 | 8.99 | 80.84 | 85.25 |
+| leaky_dams_only | baseline | 39.55 | 5.73 | 50.12 | 53.06 |
+| leaky_dams_only | RCP8.5_2070 | 59.81 | 8.52 | 76.12 | 80.89 |
+| woodland_focus | baseline | 36.09 | 5.42 | 45.29 | 51.04 |
+| woodland_focus | RCP8.5_2070 | 56.28 | 8.20 | 72.17 | 79.51 |
+| mixed_portfolio | baseline | 36.79 | 5.49 | 47.09 | 49.21 |
+| mixed_portfolio | RCP8.5_2070 | 56.48 | 8.23 | 72.57 | 76.43 |
 
 ### Peak Flow Reduction vs No Intervention
 
 | Portfolio | Baseline | RCP4.5 2040 | RCP4.5 2070 | RCP8.5 2040 | RCP8.5 2070 |
 |-----------|---------|------------|------------|------------|------------|
 | Leaky dams only (£500k) | 4.9% | 4.9% | 4.9% | 4.9% | 4.9% |
-| Woodland focus (£1M) | 12.8% | 11.9% | 11.2% | 11.5% | 10.2% |
-| Mixed portfolio (£2M) | 11.3% | 10.9% | 10.5% | 10.7% | 10.0% |
+| Woodland focus (£1M) | 13.2% | 12.3% | 11.5% | 11.9% | 10.5% |
+| Mixed portfolio (£2M) | 11.5% | 11.1% | 10.7% | 10.9% | 10.2% |
 
 ### Key Findings
 
-1. **Woodland planting is the most cost-effective intervention.** At £1M, the woodland focus portfolio achieves 12.8% peak reduction under baseline climate — more than double the 4.9% from £500k of leaky dams, and outperforming the £2M mixed portfolio (11.3%).
+1. **Woodland planting is the most cost-effective intervention.** At £1M, the woodland focus portfolio achieves 13.2% peak reduction under baseline climate — more than double the 4.9% from £500k of leaky dams, and outperforming the £2M mixed portfolio (11.5%).
 
-2. **NFM effectiveness declines under extreme climate.** Woodland reduction falls from 12.8% at baseline to 10.2% under RCP8.5 2070. The interventions reduce absolute flow levels, but the percentage reduction shrinks as the climate-driven peak grows. Leaky dam effectiveness is constant (4.9%) because routing attenuation is a fixed proportional effect.
+2. **NFM effectiveness declines under extreme climate.** Woodland reduction falls from 13.2% at baseline to 10.5% under RCP8.5 2070. The interventions reduce absolute flow levels, but the percentage reduction shrinks as the climate-driven peak grows. Leaky dam effectiveness is constant (4.9%) because routing attenuation is a fixed proportional effect.
 
-3. **NFM alone cannot offset climate-driven increases.** Even with the best portfolio, baseline peak flow of 45 m³/s rises to 63 m³/s under RCP8.5 2070 (+38% vs no-intervention baseline). NFM buys time and reduces severity, but does not eliminate climate risk.
+3. **NFM alone cannot offset climate-driven increases.** Even with the best portfolio, mean peak flow under no intervention rises from about 42 m³/s at baseline to about 63 m³/s under RCP8.5 2070 (roughly +51% vs that baseline). NFM buys time and reduces severity, but does not eliminate climate risk.
 
 4. **More investment is not always better.** The £2M mixed portfolio underperforms the £1M woodland focus. This reflects the interaction between intervention types — mixing interventions dilutes the allocation to the most effective one (woodland) without enough compensating benefit from the others.
 
-5. **Nonlinear climate amplification.** A 35% increase in rainfall intensity (RCP8.5 2070) produces a 53% increase in mean peak flow (45→70 m³/s), demonstrating how catchment hydrology amplifies rainfall changes through soil saturation and nonlinear runoff generation.
+5. **Nonlinear climate amplification.** A 35% increase in rainfall intensity (RCP8.5 2070) produces about a 51% increase in mean peak flow with no intervention (41.6→62.9 m³/s), demonstrating how catchment hydrology amplifies rainfall changes through soil saturation and nonlinear runoff generation.
 
 ---
 
@@ -238,7 +238,7 @@ go run ./cmd/calibrate/               # single-catchment calibration
 go run ./cmd/calibrate/ -multi        # multi-sub-catchment calibration
 go run ./cmd/sbi/                     # single-catchment SBI
 go run ./cmd/sbi/ -multi              # multi-sub-catchment SBI
-go run ./cmd/evaluate/                # NFM policy evaluation
+go run ./cmd/evaluate/ -cal-trials 5000 # NFM policy evaluation (README tables use 5000 calibration trials)
 ```
 
 ### Project Structure
