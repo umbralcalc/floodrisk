@@ -71,13 +71,13 @@ func (r *RainfallRunoffIteration) Iterate(
 	var fieldCapacity, drainageRate, etRate float64
 	var runoffShape, fastRecession, slowRecession, catchmentArea float64
 	if mp, ok := params.GetOk("model_params"); ok {
-		fieldCapacity = mp[0]
-		drainageRate = mp[1]
-		etRate = mp[2]
-		runoffShape = mp[3]
-		fastRecession = mp[4]
-		slowRecession = mp[5]
-		catchmentArea = mp[6]
+		fieldCapacity = math.Max(mp[0], 1e-6)
+		drainageRate = math.Max(mp[1], 0.0)
+		etRate = math.Max(mp[2], 0.0)
+		runoffShape = math.Max(mp[3], 1e-6)
+		fastRecession = math.Min(math.Max(mp[4], 0.0), 1.0)
+		slowRecession = math.Min(math.Max(mp[5], 0.0), 1.0)
+		catchmentArea = math.Max(mp[6], 1e-6)
 	} else {
 		fieldCapacity = params.Map["field_capacity"][0]
 		drainageRate = params.Map["drainage_rate"][0]

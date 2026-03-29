@@ -78,7 +78,7 @@ func BuildMultiCatchmentSBI(
 				Name:      runoffName,
 				Iteration: &RainfallRunoffIteration{},
 				Params: simulator.NewParams(map[string][]float64{
-					"upstream_partition":  {float64(i)},
+					"upstream_partition": {float64(i)},
 					"catchment_area_km2": {cfg.CatchmentAreas[name]},
 				}),
 				ParamsAsPartitions: map[string][]string{
@@ -145,7 +145,9 @@ func BuildMultiCatchmentSBI(
 				Name:    "sampler",
 				Default: append([]float64{}, cfg.PriorMean...),
 				Distribution: analysis.ParameterisedModel{
-					Likelihood: &inference.NormalLikelihoodDistribution{},
+					Likelihood: &inference.NormalLikelihoodDistribution{
+						AllowDefaultCovarianceFallback: true,
+					},
 					Params: simulator.NewParams(map[string][]float64{
 						"default_covariance": append([]float64{}, covMatrix...),
 						"cov_burn_in_steps":  {float64(cfg.WindowDepth)},
@@ -230,7 +232,9 @@ func BuildSBI(
 				Name:    "sampler",
 				Default: append([]float64{}, cfg.PriorMean...),
 				Distribution: analysis.ParameterisedModel{
-					Likelihood: &inference.NormalLikelihoodDistribution{},
+					Likelihood: &inference.NormalLikelihoodDistribution{
+						AllowDefaultCovarianceFallback: true,
+					},
 					Params: simulator.NewParams(map[string][]float64{
 						"default_covariance": append([]float64{}, covMatrix...),
 						"cov_burn_in_steps":  {float64(cfg.WindowDepth)},
