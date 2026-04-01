@@ -3,7 +3,7 @@ module github.com/umbralcalc/floodrisk
 go 1.25.2
 
 require (
-	github.com/umbralcalc/stochadex v0.0.0-20260329101819-139d2f8ca54e
+	github.com/umbralcalc/stochadex v0.0.0-20260401060408-bfa08abd7fcb
 	gonum.org/v1/gonum v0.16.0
 )
 
