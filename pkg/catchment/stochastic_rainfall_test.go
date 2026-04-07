@@ -112,7 +112,9 @@ func TestStochasticRainfallIteration(t *testing.T) {
 			},
 			TimestepFunction: &simulator.ConstantTimestepFunction{Stepsize: 1.0},
 		}
-		simulator.RunWithHarnesses(settings, implementations)
+		if err := simulator.RunWithHarnesses(settings, implementations); err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	t.Run("climate multiplier increases mean rainfall", func(t *testing.T) {
