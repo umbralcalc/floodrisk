@@ -1,0 +1,251 @@
+<div id="dexetera-flood" class="dexetera-widget">
+<style>
+#dexetera-flood { font-family: system-ui, -apple-system, sans-serif; color: #2c3e50; line-height: 1.5; }
+#dexetera-flood .description { margin: 0 0 1em; color: #2c3e50; opacity: 0.85; font-size: 1rem; }
+#dexetera-flood code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95em; background: rgba(60,120,216,0.08); padding: 0.05em 0.3em; border-radius: 3px; }
+#dexetera-flood .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.9em; }
+#dexetera-flood .panel { border: 1px solid #2c3e50; border-radius: 6px; padding: 0.8em 0.9em; background: #ffffff; display: flex; flex-direction: column; gap: 0.6em; box-sizing: border-box; }
+#dexetera-flood .panel-title { font-weight: 600; color: #2c3e50; font-size: 1rem; }
+#dexetera-flood canvas { display: block; width: 100%; max-width: 640px; height: auto; aspect-ratio: 640 / 480; margin: 0 auto; background: #ffffff; }
+#dexetera-flood .panel-readout { margin: 0; font-size: 1rem; color: #2c3e50; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+#dexetera-flood .slider { display: grid; grid-template-columns: 1fr 80px; grid-template-areas: "name readout" "input input"; align-items: center; gap: 0.3em 1em; font-size: 1rem; }
+#dexetera-flood .slider-name { grid-area: name; color: #2c3e50; }
+#dexetera-flood .slider input[type="range"] { grid-area: input; width: 100%; accent-color: #b0447a; }
+#dexetera-flood .slider-readout { grid-area: readout; text-align: right; color: #b0447a; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+#dexetera-flood .panel-actions { display: flex; flex-wrap: wrap; gap: 0.6em; margin-top: 0.4em; }
+#dexetera-flood button.button-secondary { cursor: pointer; border: 1px solid #2c3e50; background: #ffffff; color: #2c3e50; padding: 0.4em 0.85em; border-radius: 6px; font-size: 1rem; font-family: inherit; }
+#dexetera-flood button.button-secondary:hover { background: #f4f6f9; }
+#dexetera-flood .status { margin: 1em 0 0; text-align: right; font-size: 0.9em; color: #2c3e50; opacity: 0.6; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+#dexetera-flood .flood-selector { display: flex; flex-direction: column; gap: 0.4em; font-size: 1rem; margin-bottom: 0.6em; }#dexetera-flood .flood-selector-label { color: #2c3e50; font-weight: 600; }#dexetera-flood .flood-options { display: flex; flex-direction: column; gap: 0.3em; }#dexetera-flood .flood-options label { display: flex; align-items: center; gap: 0.4em; color: #2c3e50; cursor: pointer; }#dexetera-flood .flood-options input[type="radio"] { accent-color: #b0447a; }</style>
+<p class="description">Catchment flood policy support: pick a portfolio of natural flood management interventions and a climate scenario; the simulator (calibrated to Environment Agency data from the Upper Calder Valley) shows peak flow distributions over a 25-member ensemble of 5-year stochastic runs. This is a research model fitted to surveillance data, not a flood-risk planning tool.</p>
+<div class="dashboard">
+    <section class="panel">
+        <div class="panel-title">Simulation</div>
+        <canvas width="640" height="480"></canvas>
+        
+        <p class="panel-readout" data-readout="display_progress">&nbsp;</p>
+        
+        <p class="panel-readout" data-readout="display_cost">&nbsp;</p>
+        
+    </section>
+    
+    <section class="panel">
+        <div class="panel-title">Live controls</div>
+        
+        <div class="flood-selector"><span class="flood-selector-label">NFM portfolio</span><div class="flood-options"><label><input type="radio" name="flood-portfolio" value="0" checked>No intervention (£0)</label><label><input type="radio" name="flood-portfolio" value="1">Leaky dams (£500k)</label><label><input type="radio" name="flood-portfolio" value="2">Woodland focus (£1M)</label><label><input type="radio" name="flood-portfolio" value="3">Mixed (£2M)</label></div><input type="range" data-slider="portfolio" min="0" max="3" step="1" value="0" style="display:none"><span data-slider-readout="portfolio" style="display:none"></span></div>
+        
+        <div class="flood-selector"><span class="flood-selector-label">Climate scenario</span><div class="flood-options"><label><input type="radio" name="flood-scenario" value="0" checked>Baseline climate</label><label><input type="radio" name="flood-scenario" value="1">RCP4.5 — 2040 (+10%)</label><label><input type="radio" name="flood-scenario" value="2">RCP4.5 — 2070 (+20%)</label><label><input type="radio" name="flood-scenario" value="3">RCP8.5 — 2040 (+15%)</label><label><input type="radio" name="flood-scenario" value="4">RCP8.5 — 2070 (+35%)</label></div><input type="range" data-slider="scenario" min="0" max="4" step="1" value="0" style="display:none"><span data-slider-readout="scenario" style="display:none"></span></div>
+        
+        
+        <div class="panel-actions">
+            <button type="button" class="button-secondary" data-reset>Reset simulation</button>
+        </div>
+        
+    </section>
+    
+</div>
+<p class="status" data-status>Loading…</p>
+</div>
+<script>
+(function () {
+    var widget = document.getElementById('dexetera-flood');
+    var RUNTIME_BASE = 'https://pub-afdb1348ec964ca5b530aa758c0bdc56.r2.dev/assets/dexetera/runtime/';
+    var WASM_URL = 'https://pub-afdb1348ec964ca5b530aa758c0bdc56.r2.dev/assets/dexetera/widgets/flood/main.wasm';
+    var gameConfig = {"visualization":{"backgroundColor":"#fafafa","canvasHeight":480,"canvasWidth":640,"renderers":[{"partitionName":"","properties":{"color":"#2c3e50","fontSize":22,"text":"Peak flow distribution (m³/s)","textAlign":"left","x":40,"y":40},"type":"text"},{"partitionName":"","properties":{"color":"#e3e6ec","width":1,"x1":40,"x2":600,"y1":60,"y2":60},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":40,"x2":600,"y1":170,"y2":170},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":96,"x2":96,"y1":170,"y2":174},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"40","textAlign":"center","x":96,"y":194},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":208,"x2":208,"y1":170,"y2":174},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"60","textAlign":"center","x":208,"y":194},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":320,"x2":320,"y1":170,"y2":174},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"80","textAlign":"center","x":320,"y":194},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":432,"x2":432,"y1":170,"y2":174},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"100","textAlign":"center","x":432,"y":194},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":544,"x2":544,"y1":170,"y2":174},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"120","textAlign":"center","x":544,"y":194},"type":"text"},{"partitionName":"histogram_bars","properties":{"anchor":"topLeft","defaultHeight":0,"defaultWidth":0,"fillColor":"#7da8d8"},"type":"rectangleSet"},{"partitionName":"histogram_ref_marker","properties":{"anchor":"topLeft","defaultHeight":0,"defaultWidth":0,"fillColor":"#7d8aa1"},"type":"rectangleSet"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":22,"text":"Cost vs peak-flow reduction","textAlign":"left","x":60,"y":238},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":60,"x2":280,"y1":400,"y2":400},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":60,"x2":60,"y1":260,"y2":400},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":56,"x2":60,"y1":400,"y2":400},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"0%","textAlign":"right","x":52,"y":406},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":56,"x2":60,"y1":353,"y2":353},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"5%","textAlign":"right","x":52,"y":359},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":56,"x2":60,"y1":306,"y2":306},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"10%","textAlign":"right","x":52,"y":312},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":56,"x2":60,"y1":260,"y2":260},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"15%","textAlign":"right","x":52,"y":266},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":60,"x2":60,"y1":400,"y2":404},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"£0","textAlign":"center","x":60,"y":424},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":160,"x2":160,"y1":400,"y2":404},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"£1M","textAlign":"center","x":160,"y":424},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":260,"x2":260,"y1":400,"y2":404},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"£2M","textAlign":"center","x":260,"y":424},"type":"text"},{"partitionName":"cost_dots","properties":{"anchor":"topLeft","defaultHeight":0,"defaultWidth":0,"fillColor":"#7d8aa1"},"type":"rectangleSet"},{"partitionName":"cost_highlight","properties":{"anchor":"topLeft","defaultHeight":0,"defaultWidth":0,"fillColor":"#b0447a"},"type":"rectangleSet"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"none","textAlign":"left","x":72,"y":388},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"dams","textAlign":"left","x":122,"y":342},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"wood","textAlign":"right","x":148,"y":278},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"mixed","textAlign":"right","x":248,"y":331},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":22,"text":"Climate sensitivity","textAlign":"left","x":380,"y":238},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":380,"x2":600,"y1":400,"y2":400},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":380,"x2":380,"y1":260,"y2":400},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":376,"x2":380,"y1":400,"y2":400},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"40","textAlign":"right","x":372,"y":406},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":376,"x2":380,"y1":374,"y2":374},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"50","textAlign":"right","x":372,"y":380},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":376,"x2":380,"y1":349,"y2":349},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"60","textAlign":"right","x":372,"y":355},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":376,"x2":380,"y1":323,"y2":323},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"70","textAlign":"right","x":372,"y":329},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":376,"x2":380,"y1":298,"y2":298},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"80","textAlign":"right","x":372,"y":304},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":376,"x2":380,"y1":272,"y2":272},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"90","textAlign":"right","x":372,"y":278},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":380,"x2":380,"y1":400,"y2":404},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"×1.0","textAlign":"center","x":380,"y":424},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":435,"x2":435,"y1":400,"y2":404},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"×1.1","textAlign":"center","x":435,"y":424},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":490,"x2":490,"y1":400,"y2":404},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"×1.2","textAlign":"center","x":490,"y":424},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":545,"x2":545,"y1":400,"y2":404},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"×1.3","textAlign":"center","x":545,"y":424},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","width":1,"x1":600,"x2":600,"y1":400,"y2":404},"type":"line"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":18,"text":"×1.4","textAlign":"center","x":600,"y":424},"type":"text"},{"partitionName":"","properties":{"color":"#7d8aa1","dashPattern":[12,8],"width":2,"x1":380,"x2":600,"y1":362,"y2":307},"type":"line"},{"partitionName":"climate_dots","properties":{"anchor":"topLeft","defaultHeight":0,"defaultWidth":0,"fillColor":"#7d8aa1"},"type":"rectangleSet"},{"partitionName":"climate_highlight","properties":{"anchor":"topLeft","defaultHeight":0,"defaultWidth":0,"fillColor":"#b0447a"},"type":"rectangleSet"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":15,"text":"dashed: linear response","textAlign":"left","x":380,"y":440},"type":"text"},{"partitionName":"","properties":{"color":"#2c3e50","fontSize":15,"text":"dots: model response","textAlign":"left","x":380,"y":460},"type":"text"}],"updateIntervalMs":0},"sliders":[{"name":"portfolio","partition":"policy_action","valueIndex":0,"default":0,"decimals":3},{"name":"scenario","partition":"policy_action","valueIndex":1,"default":0,"decimals":3}],"readouts":[{"partition":"display_progress","template":"member {v0} of 25 · live mean peak {v1} ± {v2} m³/s","decimals":1},{"partition":"display_cost","template":"cost £{v0}M · live peak reduction {v1}%","decimals":1}],"showReset":true,"driver":{"kind":"inline","options":{"intervalMs":30}}};
+
+    // Load the renderer script lazily, sharing one promise across every
+    // dexetera widget on the same page.
+    function ensureRenderer() {
+        if (self.dexetera && self.dexetera.createRenderer) return Promise.resolve();
+        if (self.__dexeteraLoading) return self.__dexeteraLoading;
+        self.__dexeteraLoading = new Promise(function (resolve, reject) {
+            var s = document.createElement('script');
+            s.src = RUNTIME_BASE + 'renderer.js';
+            s.onload = function () { resolve(); };
+            s.onerror = function () { reject(new Error('failed to load ' + s.src)); };
+            document.head.appendChild(s);
+        });
+        return self.__dexeteraLoading;
+    }
+
+    function $(sel) { return widget.querySelector(sel); }
+    function $$(sel) { return widget.querySelectorAll(sel); }
+
+    function setStatus(msg) {
+        var el = $('[data-status]');
+        if (el) el.textContent = msg;
+    }
+
+    var slidersByPartition = (function () {
+        var grouped = {};
+        for (var i = 0; i < gameConfig.sliders.length; i++) {
+            var s = gameConfig.sliders[i];
+            if (!grouped[s.partition]) grouped[s.partition] = [];
+            grouped[s.partition].push(s);
+        }
+        return grouped;
+    })();
+
+    var worker = null;
+
+    function publishActions() {
+        for (var i = 0; i < gameConfig.sliders.length; i++) {
+            var s = gameConfig.sliders[i];
+            var input = $('[data-slider="' + s.name + '"]');
+            var ro = $('[data-slider-readout="' + s.name + '"]');
+            if (input && ro) ro.textContent = parseFloat(input.value).toFixed(s.decimals);
+        }
+        if (!worker) return;
+        var partitions = {};
+        for (var partition in slidersByPartition) {
+            if (!Object.prototype.hasOwnProperty.call(slidersByPartition, partition)) continue;
+            var group = slidersByPartition[partition];
+            var maxIdx = -1;
+            for (var j = 0; j < group.length; j++) maxIdx = Math.max(maxIdx, group[j].valueIndex);
+            var values = new Array(maxIdx + 1);
+            for (var k = 0; k <= maxIdx; k++) values[k] = 0;
+            for (var l = 0; l < group.length; l++) {
+                var sl = group[l];
+                var inp = $('[data-slider="' + sl.name + '"]');
+                values[sl.valueIndex] = parseFloat(inp ? inp.value : sl.default);
+            }
+            partitions[partition] = values;
+        }
+        worker.postMessage({ action: 'setActions', partitions: partitions });
+    }
+
+    function applyReadout(template, decimals, partitionState) {
+        var s = template;
+        s = s.replace(/\{t\}/g, Math.floor(partitionState.timesteps));
+        s = s.replace(/\{v(\d*)\}/g, function (_, idx) {
+            var i = idx === '' ? 0 : parseInt(idx, 10);
+            var v = partitionState.state.values[i];
+            return (v === undefined) ? '' : v.toFixed(decimals);
+        });
+        return s;
+    }
+
+    function ensureWorkerUrl() {
+        if (self.__dexeteraWorkerUrl) return Promise.resolve(self.__dexeteraWorkerUrl);
+        if (self.__dexeteraWorkerLoading) return self.__dexeteraWorkerLoading;
+        // Resolve RUNTIME_BASE against the page URL so the shim's base
+        // is absolute. Once the worker starts from a blob: URL it has
+        // no document context, so any relative base (e.g. the local
+        // preview's '../runtime/') would fail with "Invalid base URL"
+        // inside the importScripts wrapper.
+        var BASE_ABS = new URL(RUNTIME_BASE, document.baseURI).href;
+        self.__dexeteraWorkerLoading = fetch(BASE_ABS + 'worker.js')
+            .then(function (r) {
+                if (!r.ok) throw new Error('failed to fetch worker.js: ' + r.status);
+                return r.text();
+            })
+            .then(function (src) {
+                var shim = '(function(){var BASE=' + JSON.stringify(BASE_ABS) +
+                    ';var orig=self.importScripts;self.importScripts=function(){' +
+                    'var args=Array.prototype.map.call(arguments,function(u){' +
+                    'return new URL(u,BASE).href;});return orig.apply(self,args);};})();\n';
+                var blob = new Blob([shim, src], { type: 'application/javascript' });
+                self.__dexeteraWorkerUrl = URL.createObjectURL(blob);
+                return self.__dexeteraWorkerUrl;
+            });
+        return self.__dexeteraWorkerLoading;
+    }
+
+    function startWorker(renderer) {
+        if (worker) worker.terminate();
+        ensureWorkerUrl().then(function (workerUrl) {
+        worker = new Worker(workerUrl);
+        worker.onmessage = function (e) {
+            var msg = e.data;
+            if (msg.type === 'partitionState') {
+                renderer.update(msg.data);
+                renderer.render();
+                for (var i = 0; i < gameConfig.readouts.length; i++) {
+                    var r = gameConfig.readouts[i];
+                    if (r.partition !== msg.data.partitionName) continue;
+                    var el = $('[data-readout="' + r.partition + '"]');
+                    if (el) el.textContent = applyReadout(r.template, r.decimals, msg.data);
+                }
+                if (worker && msg.data.timesteps >= 25) { worker.terminate(); worker = null; setStatus('Ensemble complete (25 members). Use Reset to rerun.'); }
+            } else if (msg.type === 'status') {
+                setStatus(msg.data);
+                if (msg.data === 'inline driver ready') publishActions();
+            } else if (msg.type === 'error') {
+                console.error('dexetera worker error:', msg.data);
+                setStatus('Error: ' + msg.data);
+            }
+        };
+        worker.onerror = function (err) {
+            console.error('dexetera worker error:', err);
+            setStatus('Worker error: ' + err.message);
+        };
+        worker.postMessage({
+            action: 'start',
+            wasmBinary: new URL(WASM_URL, document.baseURI).href,
+            driver: gameConfig.driver,
+        });
+        publishActions();
+        }).catch(function (err) {
+            console.error(err);
+            setStatus('Failed to load dexetera worker: ' + err.message);
+        });
+    }
+
+    ensureRenderer().then(function () {
+        var canvas = $('canvas');
+        var renderer = self.dexetera.createRenderer(canvas, gameConfig.visualization);
+
+        for (var i = 0; i < gameConfig.sliders.length; i++) {
+            var s = gameConfig.sliders[i];
+            var el = $('[data-slider="' + s.name + '"]');
+            if (el) el.addEventListener('input', publishActions);
+        }
+        if (gameConfig.showReset) {
+            var btn = $('[data-reset]');
+            if (btn) btn.addEventListener('click', function () { startWorker(renderer); });
+        }
+        publishActions();
+        startWorker(renderer);
+    }).catch(function (err) {
+        console.error(err);
+        setStatus('Failed to load dexetera runtime: ' + err.message);
+    });
+})();
+</script>
+
+<script>
+(function () {
+    var widget = document.getElementById('dexetera-flood');
+    if (!widget) return;
+
+    function wireGroup(radioName, sliderName) {
+        var radios = widget.querySelectorAll('input[name="' + radioName + '"]');
+        var slider = widget.querySelector('[data-slider="' + sliderName + '"]');
+        var resetBtn = widget.querySelector('[data-reset]');
+
+        function applyValue(value) {
+            if (slider) {
+                slider.value = String(value);
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+        for (var i = 0; i < radios.length; i++) {
+            radios[i].addEventListener('change', function (e) {
+                applyValue(parseInt(e.target.value, 10));
+                if (resetBtn) resetBtn.click();
+            });
+        }
+        var initial = 0;
+        for (var j = 0; j < radios.length; j++) {
+            if (radios[j].checked) { initial = parseInt(radios[j].value, 10); break; }
+        }
+        // Initial state — sync slider but do NOT click Reset (the
+        // dexetera IIFE handles the very first sim start; clicking
+        // Reset on init would race the renderer load).
+        applyValue(initial);
+    }
+
+    wireGroup('flood-portfolio', 'portfolio');
+    wireGroup('flood-scenario', 'scenario');
+})();
+</script>
