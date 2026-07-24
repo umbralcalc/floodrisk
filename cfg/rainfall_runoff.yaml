@@ -1,22 +1,25 @@
+# Lumped rainfall-runoff model for a single sub-catchment, written entirely as data:
+# a {type: param_values} constant rainfall input and one expressions: partition for the
+# PDM-style nonlinear runoff. No Go, no code generation.
+#
+# The runoff expression is the faithful translation of catchment.RainfallRunoffIteration
+# (same PDM maths and order of operations); it reads rainfall through upstreams:, which is
+# the same lag-1 state-history read the Go model did (stateHistories[upstream].At(0,0)).
+# See the catalogue twin models/floodrisk/declarative.yaml in the stochadex repo.
 main:
   partitions:
 
-  # Rainfall input: constant 10 mm/day via ParamValuesIteration
+  # Rainfall input: constant 10 mm/day.
   - name: rainfall
-    iteration: rainfallInput
+    iteration: {type: param_values}
     params:
       param_values: [10.0]
     init_state_values: [10.0]
     state_history_depth: 1
     seed: 0
-    extra_packages:
-    - github.com/umbralcalc/stochadex/pkg/general
-    extra_vars:
-    - rainfallInput: "&general.ParamValuesIteration{}"
 
-  # Lumped rainfall-runoff model for a single sub-catchment
+  # Lumped rainfall-runoff model. State: [soil_moisture, total_flow, fast_flow, slow_flow].
   - name: rainfall_runoff
-    iteration: rainfallRunoff
     params:
       field_capacity: [200.0]
       drainage_rate: [0.05]
@@ -25,18 +28,46 @@ main:
       fast_recession_rate: [0.7]
       slow_recession_rate: [0.1]
       catchment_area_km2: [200.0]
-      upstream_partition: [0]
     init_state_values: [100.0, 0.0, 0.0, 0.0]
     state_history_depth: 2
     seed: 0
-    extra_packages:
-    - github.com/umbralcalc/floodrisk/pkg/catchment
-    extra_vars:
-    - rainfallRunoff: "&catchment.RainfallRunoffIteration{}"
+
+  expressions:
+  - partition: rainfall_runoff
+    fields:
+    - {name: soil_moisture}
+    - {name: total_flow}
+    - {name: fast_flow}
+    - {name: slow_flow}
+    upstreams:
+      rainfall_mm: rainfall
+    bindings:
+    - {name: net_rainfall, expr: "max(rainfall_mm - et_rate, 0) * dt"}
+    - {name: saturation, expr: "clamp(soil_moisture / field_capacity, 0, 1)"}
+    - {name: runoff_fraction, expr: "1 - pow(1 - saturation, runoff_shape)"}
+    - {name: direct_runoff, expr: "net_rainfall * runoff_fraction"}
+    - {name: wetted_soil, expr: "soil_moisture + (net_rainfall - direct_runoff)"}
+    # Anything the soil store cannot hold spills straight into direct runoff.
+    - {name: excess, expr: "max(wetted_soil - field_capacity, 0)"}
+    - {name: capped_soil, expr: "wetted_soil - excess"}
+    - {name: total_direct_runoff, expr: "direct_runoff + excess"}
+    # Drainage is charged against the capped store and is *not* reduced when the store is
+    # subsequently floored at zero — matching the Go order of operations.
+    - {name: drainage, expr: "drainage_rate * capped_soil * dt"}
+    - {name: mm_to_m3s, expr: "catchment_area_km2 * 1000 / (86400 * dt)"}
+    - {name: next_fast_flow, expr: "fast_recession_rate * (total_direct_runoff * mm_to_m3s)
+                                    + (1 - fast_recession_rate) * fast_flow"}
+    - {name: next_slow_flow, expr: "slow_recession_rate * (drainage * mm_to_m3s)
+                                    + (1 - slow_recession_rate) * slow_flow"}
+    outputs:
+    - "max(capped_soil - drainage, 0)"
+    - "next_fast_flow + next_slow_flow"
+    - "next_fast_flow"
+    - "next_slow_flow"
 
   simulation:
-    output_condition: "&simulator.EveryStepOutputCondition{}"
-    output_function: "&simulator.StdoutOutputFunction{}"
-    termination_condition: "&simulator.NumberOfStepsTerminationCondition{MaxNumberOfSteps: 365}"
-    timestep_function: "&simulator.ConstantTimestepFunction{Stepsize: 1.0}"
+    output_condition: {type: every_step}
+    output_function: {type: stdout}
+    termination_condition: {type: number_of_steps, max_steps: 365}
+    timestep_function: {type: constant, stepsize: 1.0}
     init_time_value: 0.0
