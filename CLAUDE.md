@@ -110,7 +110,7 @@ The `pkg/catchment` package contains the rainfall-runoff model and inference inf
 - `ChannelRoutingIteration` — linear reservoir routing aggregating multiple upstream sub-catchment flows. State: `[total_routed_flow, routed_0, ..., routed_N-1]`. Params: `upstream_partitions`, `routing_coefficients` (optional, defaults K=1.0).
 - `Calibrate`, `RunModel`, `SampleParams` — single-catchment random-search calibration over 7 model parameters
 - `RunMultiCatchmentModel`, `CalibrateMultiCatchment`, `MultiCatchmentConfig` — multi-sub-catchment model with N rainfall + N runoff + 1 routing partitions, shared PDM params, per-sub-catchment areas and routing coefficients
-- `BuildSBI`, `SBIConfig`, `DefaultSBIConfig` — single-catchment simulation-based inference using the stochadex `analysis.NewPosteriorEstimationPartitions` builder
+- `BuildSBI`, `SBIConfig`, `DefaultSBIConfig` — single-catchment simulation-based inference using the stochadex `macros.NewPosteriorEstimationPartitions` builder
 - `BuildMultiCatchmentSBI`, `MultiSBIConfig` — multi-catchment SBI with N rainfall + N runoff + 1 routing inner partitions, routing coefficients fixed from calibration
 - `ModelParamsFromMap` — converts named params to vectorized `model_params` format
 - `ValidateHoldout` — calibrates on train split, evaluates on holdout split, returns `HoldoutResult` with metrics for both periods

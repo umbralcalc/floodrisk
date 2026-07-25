@@ -119,7 +119,7 @@ Multi-sub-catchment calibration with shared PDM parameters achieves NSE ≈ 0.23
 
 ### Simulation-Based Inference
 
-Posterior estimation uses the stochadex `analysis.NewPosteriorEstimationPartitions` builder — windowed embedded simulations with Normal likelihood comparison, online posterior mean and covariance tracking, and past-discounting. Available in both single-catchment and multi-catchment configurations.
+Posterior estimation uses the stochadex `macros.NewPosteriorEstimationPartitions` builder — windowed embedded simulations with Normal likelihood comparison, online posterior mean and covariance tracking, and past-discounting. Available in both single-catchment and multi-catchment configurations.
 
 ---
 

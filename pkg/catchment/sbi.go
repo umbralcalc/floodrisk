@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/umbralcalc/stochadex/pkg/analysis"
+
 	"github.com/umbralcalc/stochadex/pkg/inference"
+	"github.com/umbralcalc/stochadex/pkg/macros"
 	"github.com/umbralcalc/stochadex/pkg/simulator"
 )
 
@@ -67,13 +69,13 @@ func BuildMultiCatchmentSBI(
 	})
 
 	// Build windowed partitions: N runoff + 1 routing.
-	windowPartitions := make([]analysis.WindowedPartition, 0, n+1)
+	windowPartitions := make([]macros.WindowedPartition, 0, n+1)
 
 	// One rainfall-runoff partition per sub-catchment.
 	for i, name := range cfg.SubCatchments {
 		rainfallDataName := name + "_rainfall"
 		runoffName := name + "_runoff"
-		windowPartitions = append(windowPartitions, analysis.WindowedPartition{
+		windowPartitions = append(windowPartitions, macros.WindowedPartition{
 			Partition: &simulator.PartitionConfig{
 				Name:      runoffName,
 				Iteration: &RainfallRunoffIteration{},
@@ -108,7 +110,7 @@ func BuildMultiCatchmentSBI(
 		routingParams["routing_coefficients"] = cfg.RoutingCoeffs
 	}
 	routingStateWidth := 1 + n
-	windowPartitions = append(windowPartitions, analysis.WindowedPartition{
+	windowPartitions = append(windowPartitions, macros.WindowedPartition{
 		Partition: &simulator.PartitionConfig{
 			Name:              "routing",
 			Iteration:         &ChannelRoutingIteration{},
@@ -127,24 +129,24 @@ func BuildMultiCatchmentSBI(
 	}
 	dataRefs = append(dataRefs, analysis.DataRef{PartitionName: "flow_data"})
 
-	partitions := analysis.NewPosteriorEstimationPartitions(
-		analysis.AppliedPosteriorEstimation{
-			LogNorm: analysis.PosteriorLogNorm{
+	partitions := macros.NewPosteriorEstimationPartitions(
+		macros.AppliedPosteriorEstimation{
+			LogNorm: macros.PosteriorLogNorm{
 				Name:    "log_normalisation",
 				Default: 0.0,
 			},
-			Mean: analysis.PosteriorMean{
+			Mean: macros.PosteriorMean{
 				Name:    "posterior_mean",
 				Default: append([]float64{}, cfg.PriorMean...),
 			},
-			Covariance: analysis.PosteriorCovariance{
+			Covariance: macros.PosteriorCovariance{
 				Name:    "posterior_covariance",
 				Default: append([]float64{}, covMatrix...),
 			},
-			Sampler: analysis.PosteriorSampler{
+			Sampler: macros.PosteriorSampler{
 				Name:    "sampler",
 				Default: append([]float64{}, cfg.PriorMean...),
-				Distribution: analysis.ParameterisedModel{
+				Distribution: macros.ParameterisedModel{
 					Likelihood: &inference.NormalLikelihoodDistribution{
 						AllowDefaultCovarianceFallback: true,
 					},
@@ -158,9 +160,9 @@ func BuildMultiCatchmentSBI(
 					},
 				},
 			},
-			Comparison: analysis.AppliedLikelihoodComparison{
+			Comparison: macros.AppliedLikelihoodComparison{
 				Name: "likelihood",
-				Model: analysis.ParameterisedModel{
+				Model: macros.ParameterisedModel{
 					Likelihood: &inference.NormalLikelihoodDistribution{},
 					Params:     compModelParams,
 					ParamsFromUpstream: map[string]simulator.NamedUpstreamConfig{
@@ -168,7 +170,7 @@ func BuildMultiCatchmentSBI(
 					},
 				},
 				Data: analysis.DataRef{PartitionName: "flow_data"},
-				Window: analysis.WindowedPartitions{
+				Window: macros.WindowedPartitions{
 					Partitions: windowPartitions,
 					Data:       dataRefs,
 					Depth:      cfg.WindowDepth,
@@ -214,24 +216,24 @@ func BuildSBI(
 		"variance": {cfg.ObsVariance},
 	})
 
-	partitions := analysis.NewPosteriorEstimationPartitions(
-		analysis.AppliedPosteriorEstimation{
-			LogNorm: analysis.PosteriorLogNorm{
+	partitions := macros.NewPosteriorEstimationPartitions(
+		macros.AppliedPosteriorEstimation{
+			LogNorm: macros.PosteriorLogNorm{
 				Name:    "log_normalisation",
 				Default: 0.0,
 			},
-			Mean: analysis.PosteriorMean{
+			Mean: macros.PosteriorMean{
 				Name:    "posterior_mean",
 				Default: append([]float64{}, cfg.PriorMean...),
 			},
-			Covariance: analysis.PosteriorCovariance{
+			Covariance: macros.PosteriorCovariance{
 				Name:    "posterior_covariance",
 				Default: append([]float64{}, covMatrix...),
 			},
-			Sampler: analysis.PosteriorSampler{
+			Sampler: macros.PosteriorSampler{
 				Name:    "sampler",
 				Default: append([]float64{}, cfg.PriorMean...),
-				Distribution: analysis.ParameterisedModel{
+				Distribution: macros.ParameterisedModel{
 					Likelihood: &inference.NormalLikelihoodDistribution{
 						AllowDefaultCovarianceFallback: true,
 					},
@@ -245,9 +247,9 @@ func BuildSBI(
 					},
 				},
 			},
-			Comparison: analysis.AppliedLikelihoodComparison{
+			Comparison: macros.AppliedLikelihoodComparison{
 				Name: "likelihood",
-				Model: analysis.ParameterisedModel{
+				Model: macros.ParameterisedModel{
 					Likelihood: &inference.NormalLikelihoodDistribution{},
 					Params:     compModelParams,
 					ParamsFromUpstream: map[string]simulator.NamedUpstreamConfig{
@@ -255,8 +257,8 @@ func BuildSBI(
 					},
 				},
 				Data: analysis.DataRef{PartitionName: "flow_data"},
-				Window: analysis.WindowedPartitions{
-					Partitions: []analysis.WindowedPartition{
+				Window: macros.WindowedPartitions{
+					Partitions: []macros.WindowedPartition{
 						{
 							Partition: &simulator.PartitionConfig{
 								Name:      "rainfall_runoff",
