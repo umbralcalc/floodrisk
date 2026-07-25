@@ -8,9 +8,9 @@ import (
 
 // HoldoutResult holds metrics for both training and holdout periods.
 type HoldoutResult struct {
-	TrainResult CalibrationResult
-	TestNSE     float64
-	TestRMSE    float64
+	TrainResult     CalibrationResult
+	TestNSE         float64
+	TestRMSE        float64
 	TestPeakBias    float64
 	TestVolumeError float64
 }
@@ -65,11 +65,11 @@ func ValidateHoldout(
 // aligned data and compares simulated vs observed peaks for detected
 // flood events. Returns per-event peak flow comparisons.
 type FloodEventComparison struct {
-	StartDay    int     // day index of event start
-	EndDay      int     // day index of event end
-	ObsPeak     float64 // observed peak flow (m³/s)
-	SimPeak     float64 // simulated peak flow (m³/s)
-	PeakBias    float64 // (sim - obs) / obs
+	StartDay int     // day index of event start
+	EndDay   int     // day index of event end
+	ObsPeak  float64 // observed peak flow (m³/s)
+	SimPeak  float64 // simulated peak flow (m³/s)
+	PeakBias float64 // (sim - obs) / obs
 }
 
 // EvaluateFloodEvents detects flood events in the observed flow and

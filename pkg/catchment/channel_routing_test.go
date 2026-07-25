@@ -47,7 +47,7 @@ func TestChannelRouting(t *testing.T) {
 
 		store := simulator.NewStateTimeStorage()
 		implementations := &simulator.Implementations{
-			Iterations: iterations,
+			Iterations:      iterations,
 			OutputCondition: &simulator.EveryStepOutputCondition{},
 			OutputFunction:  &simulator.StateTimeStorageOutputFunction{Store: store},
 			TerminationCondition: &simulator.NumberOfStepsTerminationCondition{
@@ -89,7 +89,7 @@ func TestChannelRouting(t *testing.T) {
 
 		store := simulator.NewStateTimeStorage()
 		implementations := &simulator.Implementations{
-			Iterations: iterations,
+			Iterations:      iterations,
 			OutputCondition: &simulator.EveryStepOutputCondition{},
 			OutputFunction:  &simulator.StateTimeStorageOutputFunction{Store: store},
 			TerminationCondition: &simulator.NumberOfStepsTerminationCondition{

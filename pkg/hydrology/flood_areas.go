@@ -16,12 +16,12 @@ const FloodMonitoringBaseURL = "https://environment.data.gov.uk/flood-monitoring
 
 // FloodArea represents an EA flood alert or warning area.
 type FloodArea struct {
-	ID          string `json:"@id"`
-	Label       string `json:"label"`
-	Notation    string `json:"notation"`
-	Description string `json:"description"`
-	County      string `json:"county"`
-	RiverOrSea  string `json:"riverOrSea"`
+	ID          string  `json:"@id"`
+	Label       string  `json:"label"`
+	Notation    string  `json:"notation"`
+	Description string  `json:"description"`
+	County      string  `json:"county"`
+	RiverOrSea  string  `json:"riverOrSea"`
 	Lat         float64 `json:"lat"`
 	Long        float64 `json:"long"`
 }

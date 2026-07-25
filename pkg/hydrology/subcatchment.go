@@ -11,11 +11,11 @@ import (
 
 // SubCatchment defines a sub-catchment within the study area.
 type SubCatchment struct {
-	Name         string
-	FlowStation  StationSpec
-	GaugeLat     float64
-	GaugeLong    float64
-	AreaKm2      float64 // approximate catchment area
+	Name        string
+	FlowStation StationSpec
+	GaugeLat    float64
+	GaugeLong   float64
+	AreaKm2     float64 // approximate catchment area
 }
 
 // RainfallStationMeta holds location metadata for a rainfall station.

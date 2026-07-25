@@ -415,7 +415,7 @@ func NewConfig() *dashboard.Config {
 	cfg = cfg.
 		WithReadout(dashboard.Readout{
 			Partition: "display_progress",
-			Template:  fmt.Sprintf("member {v%d} of %d · live mean peak {v%d} ± {v%d} m³/s",
+			Template: fmt.Sprintf("member {v%d} of %d · live mean peak {v%d} ± {v%d} m³/s",
 				0, SimMembers, 1, 2),
 			Decimals: 1,
 		}).

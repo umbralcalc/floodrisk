@@ -35,20 +35,20 @@ type LabelledRef struct {
 
 // Station represents an EA hydrological monitoring station.
 type Station struct {
-	ID            string       `json:"@id"`
-	Label         string       `json:"label"`
-	Notation      string       `json:"notation"`
-	WiskiID       string       `json:"wiskiID"`
-	RiverName     string       `json:"riverName"`
-	CatchmentArea float64      `json:"catchmentArea"`
-	Lat           float64      `json:"lat"`
-	Long          float64      `json:"long"`
-	Easting       int          `json:"easting"`
-	Northing      int          `json:"northing"`
-	DateOpened    string       `json:"dateOpened"`
-	DateClosed    string       `json:"dateClosed"`
+	ID            string        `json:"@id"`
+	Label         string        `json:"label"`
+	Notation      string        `json:"notation"`
+	WiskiID       string        `json:"wiskiID"`
+	RiverName     string        `json:"riverName"`
+	CatchmentArea float64       `json:"catchmentArea"`
+	Lat           float64       `json:"lat"`
+	Long          float64       `json:"long"`
+	Easting       int           `json:"easting"`
+	Northing      int           `json:"northing"`
+	DateOpened    string        `json:"dateOpened"`
+	DateClosed    string        `json:"dateClosed"`
 	Status        []LabelledRef `json:"status"`
-	NrfaStationID string       `json:"nrfaStationID"`
+	NrfaStationID string        `json:"nrfaStationID"`
 }
 
 // IsActive returns true if the station is not closed.

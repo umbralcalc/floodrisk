@@ -73,7 +73,7 @@ func FitWetDryTransitions(rainfallValues []float64, wetThreshold float64) (p01, 
 //   - p_wet_given_dry:     transition probability dry→wet (P01)
 //   - p_wet_given_wet:     transition probability wet→wet (P11)
 //   - rainfall_multiplier: multiplicative change factor (default 1.0)
-//                          for climate perturbation — scales wet-day amounts
+//     for climate perturbation — scales wet-day amounts
 //   - wet_threshold:       threshold for wet/dry classification (mm, default 0.1)
 //
 // The rainfall_multiplier allows UKCP18 climate change factors to be
@@ -81,7 +81,7 @@ func FitWetDryTransitions(rainfallValues []float64, wetThreshold float64) (p01, 
 // Transition probabilities can also be modified to represent changes in
 // wet-day frequency under climate change.
 type StochasticRainfallIteration struct {
-	rng      *rand.Rand
+	rng       *rand.Rand
 	gammaDist distuv.Gamma
 }
 

@@ -2,21 +2,21 @@ package hydrology
 
 // CatchmentConfig defines the stations and parameters for a target catchment.
 type CatchmentConfig struct {
-	Name            string
-	CentreLat       float64
-	CentreLong      float64
-	SearchRadiusKm  float64
-	FlowStations    []StationSpec
-	RainfallLat     float64
-	RainfallLong    float64
+	Name             string
+	CentreLat        float64
+	CentreLong       float64
+	SearchRadiusKm   float64
+	FlowStations     []StationSpec
+	RainfallLat      float64
+	RainfallLong     float64
 	RainfallRadiusKm float64
 }
 
 // StationSpec identifies a station to ingest by reference and name.
 type StationSpec struct {
-	Notation  string
-	Label     string
-	River     string
+	Notation string
+	Label    string
+	River    string
 }
 
 // UpperCalderValley returns the catchment configuration for the Upper Calder

@@ -192,9 +192,9 @@ func SampleEffectiveness(
 
 // Portfolio is a named collection of interventions.
 type Portfolio struct {
-	Name           string
-	Interventions  []Intervention
-	CostGBP        float64 // estimated total cost
+	Name          string
+	Interventions []Intervention
+	CostGBP       float64 // estimated total cost
 }
 
 // ApplyPortfolio modifies model parameters and routing coefficients

@@ -10,13 +10,13 @@ import (
 
 // ParamBounds defines the search range for each calibration parameter.
 type ParamBounds struct {
-	FieldCapacity      [2]float64 // [min, max] mm
-	DrainageRate       [2]float64 // [min, max] fraction/day
-	ETRate             [2]float64 // [min, max] mm/day
-	RunoffShape        [2]float64 // [min, max] PDM exponent
-	FastRecessionRate  [2]float64 // [min, max] 0-1
-	SlowRecessionRate  [2]float64 // [min, max] 0-1
-	CatchmentAreaKm2   [2]float64 // [min, max] km²
+	FieldCapacity     [2]float64 // [min, max] mm
+	DrainageRate      [2]float64 // [min, max] fraction/day
+	ETRate            [2]float64 // [min, max] mm/day
+	RunoffShape       [2]float64 // [min, max] PDM exponent
+	FastRecessionRate [2]float64 // [min, max] 0-1
+	SlowRecessionRate [2]float64 // [min, max] 0-1
+	CatchmentAreaKm2  [2]float64 // [min, max] km²
 }
 
 // DefaultBounds returns physically reasonable parameter ranges.

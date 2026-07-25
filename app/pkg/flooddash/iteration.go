@@ -32,8 +32,8 @@ const SpinUpDays = 30
 // action_state_values in this order; PolicyActionIteration latches it
 // onto state.
 const (
-	PAIdxPortfolio = 0
-	PAIdxScenario  = 1
+	PAIdxPortfolio  = 0
+	PAIdxScenario   = 1
 	PolicyActionLen = 2
 )
 
@@ -46,12 +46,12 @@ const (
 	PortfolioMixed          = 3
 	NumPortfolios           = 4
 
-	ScenarioBaseline    = 0
-	ScenarioRCP45_2040  = 1
-	ScenarioRCP45_2070  = 2
-	ScenarioRCP85_2040  = 3
-	ScenarioRCP85_2070  = 4
-	NumScenarios        = 5
+	ScenarioBaseline   = 0
+	ScenarioRCP45_2040 = 1
+	ScenarioRCP45_2070 = 2
+	ScenarioRCP85_2040 = 3
+	ScenarioRCP85_2070 = 4
+	NumScenarios       = 5
 )
 
 // PortfolioCosts is the cost (£) of each candidate portfolio. Order
@@ -131,15 +131,15 @@ func (p *PolicyActionIteration) Iterate(
 //
 // State: [peak_flow, mean_flow, member_idx].
 type EnsembleMemberIteration struct {
-	baseRunoffParams  map[string][]float64
-	rainfallParams    catchment.RainfallParams
-	routingCoeffs     []float64
-	subCatchments     []string
-	priors            catchment.InterventionPriors
-	portfolios        []catchment.Portfolio
-	scenarios         []catchment.ClimateScenario
-	baseSeed          uint64
-	rng               *rand.Rand
+	baseRunoffParams map[string][]float64
+	rainfallParams   catchment.RainfallParams
+	routingCoeffs    []float64
+	subCatchments    []string
+	priors           catchment.InterventionPriors
+	portfolios       []catchment.Portfolio
+	scenarios        []catchment.ClimateScenario
+	baseSeed         uint64
+	rng              *rand.Rand
 }
 
 // NewEnsembleMemberIteration constructs the runner with fixed
@@ -356,8 +356,8 @@ const (
 	// Dot/marker size for the cost-effectiveness and climate-sensitivity
 	// scatter plots. Drawn as a square via rectangleSet anchored top-left
 	// then shifted by half-size so it appears centred at (x, y).
-	MarkerSize     = 9
-	HighlightSize  = 13
+	MarkerSize    = 9
+	HighlightSize = 13
 )
 
 // HistogramBarsIteration emits one rectangle per histogram bin. The

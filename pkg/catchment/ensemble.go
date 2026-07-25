@@ -8,12 +8,12 @@ import (
 
 // RainfallParams holds the stochastic rainfall generator parameters.
 type RainfallParams struct {
-	WetDayShape       float64 // Gamma shape
-	WetDayScale       float64 // Gamma scale
-	PWetGivenDry      float64 // P(wet|dry)
-	PWetGivenWet      float64 // P(wet|wet)
+	WetDayShape        float64 // Gamma shape
+	WetDayScale        float64 // Gamma scale
+	PWetGivenDry       float64 // P(wet|dry)
+	PWetGivenWet       float64 // P(wet|wet)
 	RainfallMultiplier float64 // climate change factor (1.0 = baseline)
-	WetThreshold      float64 // mm threshold for wet/dry
+	WetThreshold       float64 // mm threshold for wet/dry
 }
 
 // EnsembleResult holds the output of a single ensemble member.
